@@ -48,3 +48,5 @@ pywin32
 pynput
 keyboard
 gradio
+PyAutoGUI
+PyQt5

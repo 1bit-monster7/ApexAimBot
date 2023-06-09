@@ -13,8 +13,8 @@ Sleep = windll.kernel32.Sleep
 
 pressure_gun_switch = True
 
-R = 3  # x抖动单位像素
-E = 2  # y抖动单位像素
+R = 3272.72 * 0.0006  # x抖动单位像素  旋转一圈的像素值 *  0.001 微调比如 0.0012等
+E = 0  # y抖动单位像素
 P = 0
 
 left_clicked = False
@@ -23,12 +23,13 @@ left_clicked = False
 def shake_the_gun_fun():
     while True:
         # 右键按下时 且 压枪控制打开时
-        if pressure_gun_switch and right_click_state() and left_click_state:
-            delay_move(-R, R, 0.01 * 1000)
-            delay_move(R, R, 0.01 * 1000)
-            delay_move(R, -R, 0.01 * 1000)
-            delay_move(-R, -R, 0.01 * 1000)
-            delay_move(0, E, 0.01 * 1000)
+        if pressure_gun_switch and left_click_state():
+            delay_move(-R, R, 4)
+            delay_move(R, 0, 4)
+            delay_move(R, -R, 4)
+            delay_move(-R, -R, 4)
+            delay_move(-R, 0, 4)
+            delay_move(R, R, 4)
 
 
 def _dt_gun():
@@ -58,11 +59,9 @@ def delay_move(x, y, ms=0):
     delay_ms(ms)
 
 
-
-
 def on_press(key):
     global pressure_gun_switch
-    if key == keyboard.Key.f4:
+    if key == keyboard.Key.f12:
         pressure_gun_switch = not pressure_gun_switch
         if pressure_gun_switch:
             winsound.PlaySound('function/music/8855.wav', flags=1)

@@ -612,8 +612,8 @@ def run(
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, default=ROOT / 'function/yaml/coco128.yaml', help='dataset.yaml path')
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / '320_n_model.pt', help='model.pt path(s)')
-    parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[320, 320], help='image (h, w)')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / '416_n_model.pt', help='model.pt path(s)')
+    parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[416, 416], help='image (h, w)')
     parser.add_argument('--batch-size', type=int, default=1, help='batch size')
     parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--half', action='store_true', help='FP16 half-precision export')

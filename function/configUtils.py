@@ -23,7 +23,7 @@ def _set_config(key, value):
     _config_bit[textGroup][key] = value
 
 
-def get_config_from_key(key):
+def get_ini(key):
     try:
         value = _config_bit[textGroup][key]
         # 如果 value 是中文汉字,直接返回
@@ -41,7 +41,8 @@ def get_config_from_key(key):
         # 其他情况直接返回原值
         return value
     except KeyError:
-        return 0
+        print(key, '未知的值')
+        return 0  # 没找到值则返回0
 
 
 def _getd(key):
