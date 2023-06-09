@@ -19,7 +19,7 @@ from G import params_list
 from function.OB import Publisher_Ui, Subscriber_Fun
 from function.PID_INCREMENT import PID_PLUS_GPT
 from function.automatic_armor_change import automatic_armor_change_func
-from function.configUtils import get_ini
+from function.configUtils import get_ini, _set_config
 from function.delay_ms import delay_ms
 from function.grab_screen import update_hwnd_title, grab_gpt
 from function.identify_firearms import find_gun_main
@@ -63,8 +63,12 @@ pid_x_d = 0.002
 pid_y_p = 0.8
 pid_y_i = 0
 pid_y_d = 0
-modifier_value = 0.92
-
+modifier_value = 0.88
+sens = 5  # 鼠标灵敏度
+ads = 1  # 开镜灵敏度
+shake_coefficient = 2.290904
+shake_coefficient_y = 2
+shake_delay = 6
 # 静态参数
 name_list = None
 top_window_name = 'win'
@@ -83,9 +87,13 @@ BIT_GOD = None
 is_loading = False
 # 订阅者 收到订阅执行相关命令
 WATCH_PERSON = None
-
+# 第一次加载程序
+first_load = 0
 
 # 通信 Queue
+shake_r = 0.0
+shake_t = 0.0
+md_value = 0.0
 
 
 def is_key_pressed(key_code):
@@ -102,7 +110,7 @@ def is_right_click():
 
 
 def _init_main(msg=''):
-    global model, name_list, is_loading
+    global model, name_list, is_loading, modifier_value, sens, ads, first_load, shake_r, shake_t, shake_y
     print(msg)
     print(msg)
     print(msg)
@@ -110,19 +118,30 @@ def _init_main(msg=''):
     # 同步所有ini的参数到py
     for key in params_list:
         globals()[key] = get_ini(key)
-
+    # pid 初始化
     instantiation_pid_x = PID_PLUS_GPT(0, pid_x_p, pid_x_i, pid_x_d)
     instantiation_pid_y = PID_PLUS_GPT(0, pid_y_p, pid_y_i, pid_y_d)
-    #  1. 模型加载
-    data = ROOT / 'function' / 'yaml' / 'coco128.yaml'
-    device = select_device('')
-    w = ROOT / 'function' / 'weights' / weight
-    model = DetectMultiBackend(w, device=device, dnn=False, data=data, fp16=True)
-    model.warmup(imgsz=(1, 3, *[model_imgsz, model_imgsz]))  # warmup
-    name_list = [name for name in model.names.values()]  # 拿到标签类
-    print(name_list, '当前模型分类')
-    print(f"分辨率:{screen_width}*{screen_height}p 截图宽高:{grab_width, grab_height} 窗口标题:{grab_window_title} 窗口开关：{is_show_top_window}")
 
+    # 压枪系数计算
+    zoom_sens = 1 / ads
+    modifier_value = 4 / sens * zoom_sens
+
+    # 更新进程共享变量
+    shake_r.value, shake_y.value, shake_t.value = shake_coefficient, shake_coefficient_y, shake_delay  # 共享变量赋值
+    _set_config('modifier_value', modifier_value)  # 计算后的值存储
+
+    # 第一次加载或debu模式为真
+    if debug or first_load == 0:
+        first_load += 1
+        #  1. 模型加载
+        data = ROOT / 'function' / 'yaml' / 'coco128.yaml'
+        device = select_device('')
+        w = ROOT / 'function' / 'weights' / weight
+        model = DetectMultiBackend(w, device=device, dnn=False, data=data, fp16=True)
+        model.warmup(imgsz=(1, 3, *[model_imgsz, model_imgsz]))  # warmup
+        name_list = [name for name in model.names.values()]  # 拿到标签类
+        print(name_list, '当前模型分类')
+        print(f"分辨率:{screen_width}*{screen_height}p 截图宽高:{grab_width, grab_height} 窗口标题:{grab_window_title} 窗口开关：{is_show_top_window}")
     is_loading = False  # 加载完成可以开始推理
 
 
@@ -187,11 +206,11 @@ def on_click(x, y, button, pressed):
 
 def processInitialization(no_wait_Queue):
     _C = Queue()
+
     Process(target=automatic_armor_change_func).start()  # 自动换甲
     Process(target=find_gun_main, args=(_C,)).start()  # 自动识别压枪
     Process(target=_down_gun_fun, args=(modifier_value, _C, no_wait_Queue)).start()  # 得到压枪数据
-    p_auto_shake_the_gun = Process(target=shake_gan_main)  # 抖枪宏 通用宏
-    p_auto_shake_the_gun.start()
+    Process(target=shake_gan_main, args=(shake_r, shake_t, shake_y)).start()  # 抖枪宏 通用宏
 
 
 def threadInitialization(no_wait_Queue):
@@ -291,7 +310,7 @@ def run_ai(no_wait_Queue):
                 average_fps = np.average(fps_list)
                 fps_list = []
                 fps_count = 0
-                # print(f"500抡平均FPS：{_s(average_fps)}")
+                print(f"500抡平均FPS：{_s(average_fps)}")
 
             # 4. 发送最近坐标
             result = send_nearest_pos_to_mouse_ctrl(box_list)
@@ -327,7 +346,7 @@ def run_ai(no_wait_Queue):
 
 
 def main():
-    global BIT_GOD, WATCH_PERSON
+    global BIT_GOD, WATCH_PERSON, shake_r, shake_t
     # 注册一个发布者
     BIT_GOD = Publisher_Ui()
     # 注册一个订阅者
@@ -344,6 +363,13 @@ def main():
 if __name__ == '__main__':
     freeze_support()  # 解决多线程 pyinstall打包bug
     set_start_method('spawn')  # 多进程上下文设置
+
+    # 初始化之前创建进程共享变量
+    manager = multiprocessing.Manager()
+    shake_r = manager.Value('d', 0.0)
+    shake_t = manager.Value('d', 0.0)
+    shake_y = manager.Value('d', 0.0)
+
     _init_main()  # 初始化参数
     main()  # 主程序
     create_ui(BIT_GOD)  # 创建ui 并将发布者传递给ui

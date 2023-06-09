@@ -59,25 +59,29 @@ def threadInitialization(_tC):
 
 def on_release(key):
     global pressure_gun_switch, flag
-    if key == keyboard.Key.f4:
+    if key == keyboard.Key.f11:
         pressure_gun_switch = not pressure_gun_switch
         if pressure_gun_switch:
             winsound.PlaySound('function/music/8855.wav', flags=1)
-        print(f'自动压枪：{"开" if pressure_gun_switch else "关"}')
+        else:
+            winsound.PlaySound('function/music/close.wav', flags=1)
+        print(f'识别压枪：{"开" if pressure_gun_switch else "关"}')
 
 
 def _down_gun_fun(modifier_value, t_C, no_wait_Queue):
+    global flag, pressure_gun_switch, offset_x, offset_y, active_weapon
+    print(f"识别压枪 load successful  自动计算压枪系数{ modifier_value}   F11开关")
+    print(f'识别压枪：{"开" if pressure_gun_switch else "关"}')
     threadInitialization(t_C)  # 进程加载
     while True:
-        global flag, pressure_gun_switch, offset_x, offset_y, active_weapon
         if is_left_click() and pressure_gun_switch:
             try:
                 # 尝试按照后坐力模式压枪
                 for i in range(len(G.recoil_patterns[active_weapon])):
                     if not is_left_click() or not is_right_click():
                         continue
-                    offset_x = int(G.recoil_patterns[active_weapon][i][0] / modifier_value)
-                    offset_y = int(G.recoil_patterns[active_weapon][i][1] / modifier_value)
+                    offset_x = round(G.recoil_patterns[active_weapon][i][0] * modifier_value)
+                    offset_y = round(G.recoil_patterns[active_weapon][i][1] * modifier_value)
 
                     # 非阻塞方式获取队列中的变量值 如果当前主线程正在自瞄x轴 则不需要压枪 否则 x轴也要压枪
                     if not no_wait_Queue.empty():

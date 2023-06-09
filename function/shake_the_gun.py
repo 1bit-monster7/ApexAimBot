@@ -13,23 +13,29 @@ Sleep = windll.kernel32.Sleep
 
 pressure_gun_switch = True
 
-R = 3272.72 * 0.0006  # x抖动单位像素  旋转一圈的像素值 *  0.001 微调比如 0.0012等
-E = 0  # y抖动单位像素
-P = 0
-
 left_clicked = False
 
 
-def shake_the_gun_fun():
+def shake_the_gun_fun(skr, skt, sky):
     while True:
+        r = skr.value
+        t = skt.value
+        y = sky.value
+        # print(shake_coefficient,shake_delay)
         # 右键按下时 且 压枪控制打开时
         if pressure_gun_switch and left_click_state():
-            delay_move(-R, R, 4)
-            delay_move(R, 0, 4)
-            delay_move(R, -R, 4)
-            delay_move(-R, -R, 4)
-            delay_move(-R, 0, 4)
-            delay_move(R, R, 4)
+            # delay_move(-r, r, t)
+            # delay_move(r, 0, t)
+            # delay_move(r, -r, t)
+            # delay_move(-r, -r, t)
+            # delay_move(-r, 0, t)
+            # delay_move(r, r, t)
+
+            delay_move(-r, r, t)
+            delay_move(r, r, t)
+            delay_move(r, -r, t)
+            delay_move(-r, -r, t)
+            delay_move(0, y, t)
 
 
 def _dt_gun():
@@ -65,7 +71,9 @@ def on_press(key):
         pressure_gun_switch = not pressure_gun_switch
         if pressure_gun_switch:
             winsound.PlaySound('function/music/8855.wav', flags=1)
-        print(f'自动压枪：{"开" if pressure_gun_switch else "关"}')
+        else:
+            winsound.PlaySound('function/music/close.wav', flags=1)
+        print(f'抖枪：{"开" if pressure_gun_switch else "关"}')
 
 
 def left_click_state():
@@ -78,10 +86,10 @@ def right_click_state():
     return right_click < 0
 
 
-def shake_gan_main():
-    print('抖枪宏 load successful')
+def shake_gan_main(shake_r, shake_t, shake_y):
+    print(f"抖枪宏 load successful 抖动幅度{shake_r.value} 抖动延时{shake_t.value} F12开关")
     print(f'抖枪宏：{"开" if pressure_gun_switch else "关"}')
     listener_keyboard = keyboard.Listener(on_press=on_press)
     listener_keyboard.start()
     # _dt_gun()
-    shake_the_gun_fun()
+    shake_the_gun_fun(shake_r, shake_t, shake_y)

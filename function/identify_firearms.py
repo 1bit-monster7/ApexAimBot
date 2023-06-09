@@ -51,7 +51,8 @@ def find_gun_main(c):
                 if find_count == 5:
                     active_weapon = None
                     find_count = 0
-                    # print('5次未找到枪械清空当前枪械', active_weapon)
+                    c.put(active_weapon)
+                    print('5次未找到枪械清空当前枪械', active_weapon)
         delay_ms(400)
 
 

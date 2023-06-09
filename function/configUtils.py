@@ -44,25 +44,3 @@ def get_ini(key):
         print(key, '未知的值')
         return 0  # 没找到值则返回0
 
-
-def _getd(key):
-    try:
-        value = _config_bit[textGroup][key]
-        # 如果 value 是中文汉字，直接返回
-        if all('\u4e00' <= char <= '\u9fff' for char in value):
-            return value
-        # 如果 value 是字符串数字，将其转化为浮点数或整数并返回
-        elif isinstance(value, str):
-            # 尝试将 value 转换为浮点数
-            try:
-                float_num = float(value)
-                # 如果 value 可以被转换为整数，也就是没有小数部分，直接返回整数
-                if float_num.is_integer():
-                    return int(float_num)
-                return float_num
-            except ValueError:
-                # 如果 value 不能被转换为浮点数，则继续执行下面的语句
-                pass
-        return value
-    except KeyError:
-        return 0

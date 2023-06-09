@@ -54,18 +54,23 @@ def create_ui(BIT_GOD):
     notice_god = BIT_GOD
     models_files_list = list_weights_files()  # 获取所有权重文件
     # 组件
+    shake_coefficient = gr.Slider(0, 100, step=0.1, value=get_ini('shake_coefficient'), label=" 抖枪系数", info="抖枪系数 一般0.1 微调")  # 滑动条
+    shake_coefficient_y = gr.Slider(0, 100, step=0.1, value=get_ini('shake_coefficient_y'), label=" 抖枪系数Y轴", info="抖枪系数 一般0.1 微调")  # 滑动条
+    shake_delay = gr.Slider(0, 100, step=0.1, value=get_ini('shake_delay'), label="抖动延时", info="抖枪延时 值越小抖动速度越快")  # 滑动条
     grab_window_title = gr.inputs.Textbox(label="游戏名称", default=get_ini('grab_window_title'))
     screen_width = gr.inputs.Textbox(label="屏幕分辨率X", default=get_ini('screen_width'))
     screen_height = gr.inputs.Textbox(label="屏幕分辨率Y", default=get_ini('screen_height'))
-    debug = gr.Radio(['1', '0'], label="Debug", info="实时调整参数 1 是开启 0 是关闭", value=str(get_ini('debug')))
+    debug = gr.Radio(['1', '0'], label="Debug", info="保存时是否重新载入模型 1 是开启 0 是关闭", value=str(get_ini('debug')))
     is_show_top_window = gr.Radio(['1', '0'], label="显示窗口", info="右上角win窗口 1 是开启 0 是关闭", value=str(get_ini('is_show_top_window')))
     aim_mod = gr.Radio(['0', '1', '2'], label="瞄准模式", info="1 左键 2右键 3左右", value=str(get_ini('aim_mod')))
     model_imgsz = gr.Radio(['320', '416', '640'], label="模型大小", info="训练时模型的大小", value=str(get_ini('model_imgsz')))  # 单选
-    grab_width = gr.Slider(1, 1920, value=get_ini('grab_width'), label="截图范围", info="设置x轴截图范围值")  # 滑动条
-    grab_height = gr.Slider(1, 1080, value=get_ini('grab_height'), label="截图范围", info="设置y轴截图范围值")  # 滑动条
-    min_step = gr.Slider(1, 100, step=1, value=get_ini('min_step'), label="最小可移动像素值", info="最小值 控制随机移动的最小值")  # 滑动条
-    max_step = gr.Slider(1, 200, step=1, value=get_ini('max_step'), label="最大可移动像素值", info="最大值 控制随机移动的最大步数")  # 滑动条
-    modifier_value = gr.Slider(0, 1, step=0.001, value=get_ini('modifier_value'), label=" 压枪系数", info="0 - 1 越小越压")  # 滑动条
+    grab_width = gr.Slider(0, 1920, value=get_ini('grab_width'), label="截图范围", info="设置x轴截图范围值")  # 滑动条
+    grab_height = gr.Slider(0, 1080, value=get_ini('grab_height'), label="截图范围", info="设置y轴截图范围值")  # 滑动条
+    min_step = gr.Slider(0, 100, step=1, value=get_ini('min_step'), label="最小可移动像素值", info="最小值 控制随机移动的最小值")  # 滑动条
+    max_step = gr.Slider(0, 200, step=1, value=get_ini('max_step'), label="最大可移动像素值", info="最大值 控制随机移动的最大步数")  # 滑动条
+    sens = gr.Slider(0, 10, step=0.001, value=get_ini('sens'), label=" 鼠标速度", info="Apex 游戏设置里面鼠标速度")  # 滑动条
+    ads = gr.Slider(0, 10, step=0.001, value=get_ini('ads'), label=" 开镜鼠标速度", info="ads Apex游戏内 开镜速度")  # 滑动条
+    modifier_value = gr.Slider(0, 1, step=0.001, value=str(get_ini('modifier_value')), label="最终计算出的压枪系数 一般不需要手动调整", info="0 - 1 越小越压")  # 滑动条
     conf_thres = gr.Slider(0, 1, step=0.001, value=get_ini('conf_thres'), label=" 置信度", info="置信度")  # 滑动条
     weight = gr.Dropdown(models_files_list, value=get_ini('weight'), label="权重文件", info="选择权重文件")
     iou_thres = gr.Slider(0, 1, step=0.001, value=get_ini('iou_thres'), label=" 交并集", info="交并集")  # 滑动条
@@ -80,33 +85,48 @@ def create_ui(BIT_GOD):
     with gr.Blocks(
             css=".gradio-container {background-color: #03001C;max-width:100vw!important;margin:0!important;}",
             theme=gr.themes.Soft(primary_hue=dark_themes)) as demo:
-        with gr.Tab("APEX 1Bit"):
+        with gr.Tab("From 1bit q1748244285"):
             with gr.Row():
-                with gr.Row():
-                    grab_window_title.render()
-                    screen_width.render()
-                    screen_height.render()
-            with gr.Row():
-                with gr.Column():
+                with gr.Tab("基本设置"):
                     with gr.Row():
                         debug.render()
                         is_show_top_window.render()
                         aim_mod.render()
             with gr.Row():
-                with gr.Row():
-                    model_imgsz.render()
-                    grab_width.render()
-                    grab_height.render()
+                with gr.Tab("抖枪设置"):
+                    with gr.Row():
+                        shake_coefficient.render()
+                        shake_coefficient_y.render()
+                        shake_delay.render()
             with gr.Row():
-                with gr.Row():
-                    min_step.render()
-                    max_step.render()
-                    modifier_value.render()
+                with gr.Tab("自识别压枪设置"):
+                    with gr.Row():
+                        sens.render()
+                        ads.render()
+                        modifier_value.render()
             with gr.Row():
-                with gr.Row():
-                    conf_thres.render()
-                    weight.render()
-                    iou_thres.render()
+                with gr.Tab("屏幕设置"):
+                    with gr.Row():
+                        grab_window_title.render()
+                        screen_width.render()
+                        screen_height.render()
+            with gr.Row():
+                with gr.Tab("截图设置"):
+                    with gr.Row():
+                        model_imgsz.render()
+                        grab_width.render()
+                        grab_height.render()
+            with gr.Row():
+                with gr.Tab("移动设置"):
+                    with gr.Row():
+                        min_step.render()
+                        max_step.render()
+            with gr.Row():
+                with gr.Tab("模型设置"):
+                    with gr.Row():
+                        conf_thres.render()
+                        weight.render()
+                        iou_thres.render()
             with gr.Row():
                 with gr.Tab("PID算法X轴设置"):
                     with gr.Row():
@@ -121,6 +141,11 @@ def create_ui(BIT_GOD):
                         pid_y_d.render()
         bottom2 = gr.Button(value="保存")
         bottom2.click(submit, inputs=[
+            shake_coefficient,
+            shake_coefficient_y,
+            shake_delay,
+            sens,
+            ads,
             min_step,
             max_step,
             grab_window_title,
