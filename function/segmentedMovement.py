@@ -10,6 +10,30 @@ def _mouse(x, y):
     Logitech.mouse.move(x, y)
 
 
+def segmented_movement_x(x, _min=10, _max=10, offset_y=0):
+    if abs(x) == 0 and abs(offset_y) == 0:
+        return
+
+    _mouse(0, offset_y)
+
+    _to_x = int(x >= 0)
+    _random = get_random_integer(_min, _max)
+
+    _total_x, _remainder_x = cutting_num(x, _random)
+
+    total_move = _total_x
+
+    for i in range(total_move):
+        if i < _total_x:
+            _real_x = get_num_from_random(_to_x, _random)
+        else:
+            _real_x = 0
+        _mouse(int(FOV_X(_real_x)), 0)
+
+    if abs(_remainder_x) > 0:
+        _mouse(int(FOV_X(_remainder_x)), 0)
+
+
 def segmented_movement_xy(x, y, _min=10, _max=10):
     if abs(x) == 0 and abs(y) == 0:
         return

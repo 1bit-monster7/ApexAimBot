@@ -7,5 +7,5 @@ Sleep = windll.kernel32.Sleep
 
 def delay_ms(ms):
     timeBeginPeriod(1)
-    Sleep(ms)
+    Sleep(int(ms))
     timeEndPeriod(1)

@@ -1,63 +1,36 @@
 import configparser
 import os
 import sys
+import time
 
 import gradio as gr
-from gradio.themes import Color
 
-from function.configUtils import get_config_from_key, _set_config, _write
-
-dark_themes = Color(
-    name="dark_themes",
-    c50="#000000",  # 黑 主色调
-    c100="#ffffff",  # 白 副色调
-    c200="#ffffff",
-    c300="#ffffff",
-    c400="#ffffff",
-    c500="#303030",  # 文字颜色
-    c600="#404258",  # radio 颜色
-    c700="#B6EADA",
-    c800="#ffffff",
-    c900="#ffffff",
-    c950='#ffffff',
-)
+from G import params_list, dark_themes
+from function.configUtils import get_ini, _set_config, _write
 
 config = configparser.ConfigParser()
 # 从1bit.ai.config文件中读取参数和值
 config.read("1bit.ai.config")
 
 textGroup = 'group'  # 分组名称
+
+notice_god = None
+
+
 # 定义一个公共字典对象 用于保存参数 这里的数组key顺序要和下面的传参顺序一致
-arr = [
-    '_debug',
-    '_is_show_top_window',
-    '_conf_thres',
-    '_iou_thres',
-    '_weight',
-    '_model_imgsz',
-    '_grab_width',
-    '_grab_height',
-    'pid_x_P',
-    'pid_x_I',
-    'pid_x_D',
-    'pid_x_min',
-    'pid_x_max',
-    'pid_y_P',
-    'pid_y_I',
-    'pid_y_D',
-    'pid_y_min',
-    'pid_y_max',
-]
 
 
 def submit(*args):
     print(f"保存并拿到参数keys数组：{args}")
+    global notice_god
     count = 0
     for val in args:
-        key = arr[count]  # key
+        key = params_list[count]  # key
         count += 1
         _set_config(key, val)
     _write()  # 写入ini
+    time.sleep(0.5)
+    notice_god.notify(f"注意：已修改参数 将根据最新的参数进行程序执行")
 
 
 def list_weights_files():
@@ -76,98 +49,100 @@ def restart_program():
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 
-def create_ui():
+def create_ui(BIT_GOD):
+    global notice_god
+    notice_god = BIT_GOD
     models_files_list = list_weights_files()  # 获取所有权重文件
+    # 组件
+    grab_window_title = gr.inputs.Textbox(label="游戏名称", default=get_ini('grab_window_title'))
+    screen_width = gr.inputs.Textbox(label="屏幕分辨率X", default=get_ini('screen_width'))
+    screen_height = gr.inputs.Textbox(label="屏幕分辨率Y", default=get_ini('screen_height'))
+    debug = gr.Radio(['1', '0'], label="Debug", info="实时调整参数 1 是开启 0 是关闭", value=str(get_ini('debug')))
+    is_show_top_window = gr.Radio(['1', '0'], label="显示窗口", info="右上角win窗口 1 是开启 0 是关闭", value=str(get_ini('is_show_top_window')))
+    aim_mod = gr.Radio(['0', '1', '2'], label="瞄准模式", info="1 左键 2右键 3左右", value=str(get_ini('aim_mod')))
+    model_imgsz = gr.Radio(['320', '416', '640'], label="模型大小", info="训练时模型的大小", value=str(get_ini('model_imgsz')))  # 单选
+    grab_width = gr.Slider(1, 1920, value=get_ini('grab_width'), label="截图范围", info="设置x轴截图范围值")  # 滑动条
+    grab_height = gr.Slider(1, 1080, value=get_ini('grab_height'), label="截图范围", info="设置y轴截图范围值")  # 滑动条
+    min_step = gr.Slider(1, 100, step=1, value=get_ini('min_step'), label="最小可移动像素值", info="最小值 控制随机移动的最小值")  # 滑动条
+    max_step = gr.Slider(1, 200, step=1, value=get_ini('max_step'), label="最大可移动像素值", info="最大值 控制随机移动的最大步数")  # 滑动条
+    modifier_value = gr.Slider(0, 1, step=0.001, value=get_ini('modifier_value'), label=" 压枪系数", info="0 - 1 越小越压")  # 滑动条
+    conf_thres = gr.Slider(0, 1, step=0.001, value=get_ini('conf_thres'), label=" 置信度", info="置信度")  # 滑动条
+    weight = gr.Dropdown(models_files_list, value=get_ini('weight'), label="权重文件", info="选择权重文件")
+    iou_thres = gr.Slider(0, 1, step=0.001, value=get_ini('iou_thres'), label=" 交并集", info="交并集")  # 滑动条
+    pid_x_p = gr.Slider(0, 1, step=0.001, value=get_ini('pid_x_p'), label=" P参数（比例系数）", info="设置X轴的P参数")  # 滑动条
+    pid_x_i = gr.Slider(0, 1, step=0.001, value=get_ini('pid_x_i'), label=" I 参数（积分系数）", info="设置X轴的I参数")  # 滑动条
+    pid_x_d = gr.Slider(0, 1, step=0.001, value=get_ini('pid_x_d'), label=" D 参数（微分系数）", info="设置X轴的D参数")  # 滑动条
+    pid_y_p = gr.Slider(0, 1, step=0.001, value=get_ini('pid_y_p'), label=" P 参数（比例系数）", info="设置Y轴的P参数")  # 滑动条
+    pid_y_i = gr.Slider(0, 1, step=0.001, value=get_ini('pid_y_i'), label=" I 参数（积分系数）", info="设置Y轴的I参数")  # 滑动条
+    pid_y_d = gr.Slider(0, 1, step=0.001, value=get_ini('pid_y_d'), label=" D 参数（微分系数）", info="设置Y轴的D参数")  # 滑动条
+
+    # render
     with gr.Blocks(
             css=".gradio-container {background-color: #03001C;max-width:100vw!important;margin:0!important;}",
             theme=gr.themes.Soft(primary_hue=dark_themes)) as demo:
-        # with gr.Blocks(theme=gr.themes.default) as demo:
-        with gr.Tab("APEX Ai Config"):
-            with gr.Row():  # 并行显示，可开多列
-                _debug = gr.Radio(['开启', '关闭'], label="Debug", info="实时调整参数", value=get_config_from_key('_debug'))
-                _is_show_top_window = gr.Radio(['开启', '关闭'], label="显示窗口", info="实时调整参数", value=get_config_from_key('_is_show_top_window'))
-                _aim_mod = gr.Radio(['1', '2', '3'], label="瞄准模式", info="1 左键 2右键 3左右", value=str(get_config_from_key('_aim_mod')))
-            with gr.Row():  # 并行显示，可开多列
-                with gr.Column():  # 并列显示，可开多行
-                    with gr.Tab("权重相关参数"):
-                        with gr.Row():  # 并行显示，可开多列
-                            _conf_thres = gr.Slider(0, 1, step=0.001, value=get_config_from_key('_conf_thres'),
-                                                    label=" 置信度",
-                                                    info="置信度")  # 滑动条
-                            _iou_thres = gr.Slider(0, 1, step=0.001, value=get_config_from_key('_iou_thres'),
-                                                   label=" 交并集",
-                                                   info="交并集")  # 滑动条
-                            _weight = gr.Dropdown(models_files_list,
-                                                  value=get_config_from_key('_weight'),
-                                                  label="权重文件完整名称", info="选择已有的权重文件")
-            with gr.Row():  # 并行显示，可开多列
-                with gr.Column():  # 并列显示，可开多行
-                    with gr.Tab("截图相关参数"):
-                        with gr.Row():  # 并行显示，可开多列
-                            _model_imgsz = gr.Radio(['320', '416', '640'], label="模型大小", info="训练时模型的大小",
-                                                    value=str(get_config_from_key('_model_imgsz')))  # 单选
-                            _grab_width = gr.Slider(1, 1920, value=get_config_from_key('_grab_width'), label="截图范围",
-                                                    info="设置x轴截图范围值")  # 滑动条
-                            _grab_height = gr.Slider(1, 1080, value=get_config_from_key('_grab_height'), label="截图范围",
-                                                     info="设置y轴截图范围值")  # 滑动条
-            with gr.Row():  # 并行显示，可开多列
-                with gr.Column():  # 并列显示，可开多行
-                    with gr.Column():  # 并列显示，可开多行
-                        with gr.Tab("PID算法X轴设置"):
-                            with gr.Row():  # 并行显示，可开多列
-                                pid_x_P = gr.Slider(0, 1, step=0.001, value=get_config_from_key('pid_x_P'),
-                                                    label=" P 值",
-                                                    info="移动速度，值越高速度越快，也越抖")  # 滑动条
-                                pid_x_I = gr.Slider(0, 1, step=0.001, value=get_config_from_key('pid_x_I'),
-                                                    label=" I 值",
-                                                    info="动态补偿，防止目标在移动时跟不上目标")  # 滑动条
-                                pid_x_D = gr.Slider(0, 1, step=0.001, value=get_config_from_key('pid_x_D'),
-                                                    label=" D 值",
-                                                    info="抵消振荡，增加反应，振荡时适当增加")  # 滑动条
-                            with gr.Row():  # 并行显示，可开多列
-                                pid_x_min = gr.Slider(1, 10, step=1, value=get_config_from_key('pid_x_min'),
-                                                      label="最小补偿阈值",
-                                                      info="限制补偿，防止振荡")  # 滑动条
-                                pid_x_max = gr.Slider(0, 250, step=1, value=get_config_from_key('pid_x_max'),
-                                                      label="最大补偿阈值",
-                                                      info="限制最大补偿阈值，避免补偿过头")  # 滑动条
-
-                    with gr.Tab("PID算法Y轴设置"):
-                        with gr.Row():  # 并行显示，可开多列
-                            pid_y_P = gr.Slider(0, 1, step=0.001, value=get_config_from_key('pid_y_P'), label=" P 值",
-                                                info="移动速度，值越高速度越快，也越抖")  # 滑动条
-                            pid_y_I = gr.Slider(0, 1, step=0.001, value=get_config_from_key('pid_y_I'), label=" I 值",
-                                                info="动态补偿，防止目标在移动时跟不上目标")  # 滑动条
-                            pid_y_D = gr.Slider(0, 1, step=0.001, value=get_config_from_key('pid_y_D'), label=" D 值",
-                                                info="抵消振荡，增加反应，振荡时适当增加")  # 滑动条
-                        with gr.Row():  # 并行显示，可开多列
-                            pid_y_min = gr.Slider(1, 10, step=1, value=get_config_from_key('pid_y_min'), label="最小补偿阈值",
-                                                  info="限制补偿，防止振荡")  # 滑动条
-                            pid_y_max = gr.Slider(0, 250, step=1, value=get_config_from_key('pid_y_max'),
-                                                  label="最大补偿阈值",
-                                                  info="限制最大补偿阈值，避免补偿过头")  # 滑动条
-            bottom2 = gr.Button(value="保存")
-            bottom2.click(submit,
-                          inputs=[
-                              _debug,
-                              _is_show_top_window,
-                              _conf_thres,
-                              _iou_thres,
-                              _weight,
-                              _model_imgsz,
-                              _grab_width,
-                              _grab_height,
-                              pid_x_P,
-                              pid_x_I,
-                              pid_x_D,
-                              pid_x_min,
-                              pid_x_max,
-                              pid_y_P,
-                              pid_y_I,
-                              pid_y_D,
-                              pid_y_min,
-                              pid_y_max,
-                          ])  # 触发
-            bottom8 = gr.Button(value="重启软件")
-            bottom8.click(restart_program)
-    demo.launch()
+        with gr.Tab("APEX 1Bit"):
+            with gr.Row():
+                with gr.Row():
+                    grab_window_title.render()
+                    screen_width.render()
+                    screen_height.render()
+            with gr.Row():
+                with gr.Column():
+                    with gr.Row():
+                        debug.render()
+                        is_show_top_window.render()
+                        aim_mod.render()
+            with gr.Row():
+                with gr.Row():
+                    model_imgsz.render()
+                    grab_width.render()
+                    grab_height.render()
+            with gr.Row():
+                with gr.Row():
+                    min_step.render()
+                    max_step.render()
+                    modifier_value.render()
+            with gr.Row():
+                with gr.Row():
+                    conf_thres.render()
+                    weight.render()
+                    iou_thres.render()
+            with gr.Row():
+                with gr.Tab("PID算法X轴设置"):
+                    with gr.Row():
+                        pid_x_p.render()
+                        pid_x_i.render()
+                        pid_x_d.render()
+            with gr.Row():
+                with gr.Tab("PID算法Y轴设置"):
+                    with gr.Row():
+                        pid_y_p.render()
+                        pid_y_i.render()
+                        pid_y_d.render()
+        bottom2 = gr.Button(value="保存")
+        bottom2.click(submit, inputs=[
+            min_step,
+            max_step,
+            grab_window_title,
+            screen_width,
+            screen_height,
+            debug,
+            is_show_top_window,
+            aim_mod,
+            conf_thres,
+            iou_thres,
+            weight,
+            model_imgsz,
+            grab_width,
+            grab_height,
+            pid_x_p,
+            pid_x_i,
+            pid_x_d,
+            pid_y_p,
+            pid_y_i,
+            pid_y_d,
+            modifier_value
+        ])  # 触发
+        bottom8 = gr.Button(value="重启软件")
+        bottom8.click(restart_program)
+    demo.launch(inbrowser=True)

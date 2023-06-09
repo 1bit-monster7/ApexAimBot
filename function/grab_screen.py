@@ -27,10 +27,10 @@ def get_all_hwnd(hwnd, mouse):
 
 def update_hwnd_title():
     win32gui.EnumWindows(get_all_hwnd, 0)
-    return
     for h, t in hwnd_title.items():
         if t != "":
-            print(h, t)
+            # print(h, t)
+            pass  # 获取所有进程的名称 用于得到例如Apex 的类名窗口截图
 
 
 def grab_screen_win32_v2(window_title, grab_rect=None):
