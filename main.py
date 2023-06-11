@@ -25,7 +25,7 @@ from function.grab_screen import update_hwnd_title, grab_gpt
 from function.identify_firearms import find_gun_main
 from function.logitech import Logitech
 from function.pressTheGun import down_gun_fun_c
-from function.segmentedMovement import generate_random_int, _mouse
+from function.segmentedMovement import _mouse
 from function.shake_the_gun import shake_gan_main
 from function.web_ui import create_ui
 from models.common import DetectMultiBackend
@@ -147,8 +147,6 @@ def send_nearest_pos_to_mouse_ctrl(box_list):
     half_grab_height = grab_height / 2
 
     for box in box_list:
-        if box[0] not in name_list:
-            continue
         box_center_x = box[1] * grab_width
         box_center_y = box[2] * grab_height
         box_width = box[3] * grab_width  # 目标框宽度
@@ -234,7 +232,6 @@ def interface_img_gpt(img):
     if len(pred[0]):
         det = pred[0]
         det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], img.shape).round()
-
         for *xyxy, conf, cls in reversed(det):
             xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()
 
@@ -283,7 +280,6 @@ def draw_box(img, box_list):
     return img
 
 
-@torch.no_grad()  # 不要删 (do not delete it )
 def run_ai(no_wait_Queue):
     global model
     fps_l = []
@@ -314,7 +310,7 @@ def run_ai(no_wait_Queue):
             _for_time = _s((timer() - fps_tag) * 1000)
             _fps = (1 / float(_for_time)) * 1000
 
-            print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}  |  处理坐标耗费时间：{_result_timer}  |  fps：{_fps}")
+            # print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}  |  处理坐标耗费时间：{_result_timer}  |  fps：{_fps}")
 
             # 有数据则锁人
             if result:
@@ -338,15 +334,17 @@ def run_ai(no_wait_Queue):
                     no_wait_Queue.put(True)  # 告诉压枪进程 不要压x轴
                     # random_step = generate_random_int(min_step, max_step)
                     if left_down_not_right():
+                        offset = int(box_height * 0.2)
                         _pid_x = int(instantiation_pid_x.getMove(pos_min[0], min_step))
-                        _pid_y = int(instantiation_pid_y.getMove(pos_min[1] - (box_height * 0.2)))
+                        _pid_y = int(instantiation_pid_y.getMove((pos_min[1] - offset)))
                         _mouse(_pid_x, _pid_y)
-                        print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{min_step}")
+                        print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{min_step} offset：{offset}")
                     else:
+                        offset = int(box_height * 0.2)
                         _pid_x = int(instantiation_pid_x.getMove(pos_min[0], max_step))
-                        _pid_y = int(instantiation_pid_y.getMove(pos_min[1] - (box_height * 0.15)))
+                        _pid_y = int(instantiation_pid_y.getMove((pos_min[1] - offset)))
                         _mouse(_pid_x, _pid_y)
-                        print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{max_step}")
+                        print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{max_step} pos_min：{pos_min[1]} offset：{offset}")
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
             if is_show_top_window:
                 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #

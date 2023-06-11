@@ -92,7 +92,7 @@ def down_gun_fun_c(modifier_value, t_C, no_wait_Queue):
                     # no_wait_Queue.put((offset_x, offset_y)) # 通知主进程
                     delay_ms(int(G.recoil_patterns[active_weapon][i][2] * 1000))
                     flag = True  # 如果代码执行到这里，说明压枪成功，将标志设置为 True
-
+                # delay_ms(5)
             except KeyError:
                 flag = False
                 pass  # 如果找不到后坐力模式，则不做任何操作
