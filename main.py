@@ -10,14 +10,16 @@ from timeit import default_timer as timer
 import cv2
 import numpy as np
 import torch
+import win32api
 import win32con
 import win32gui
+import win32process
 import winsound
 from pynput import mouse
 
 from G import params_list
 from function.OB import Publisher_Ui, Subscriber_Fun
-from function.PID_INCREMENT import ADRC_PLUS, PID_PLUS_PLUS
+from function.PID_INCREMENT import PID_PLUS_PLUS
 from function.automatic_armor_change import automatic_armor_change_func
 from function.configUtils import get_ini, set_config
 from function.delay_ms import delay_ms, left_down_not_right, left_down, right_down, left_or_right_down
@@ -369,6 +371,14 @@ def run_ai(no_wait_Queue):
                 cv2.waitKey(1)
 
 
+def set_process_priority(pid, priority):
+
+    handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, False, pid)
+    win32process.SetPriorityClass(handle, priority)
+    win32api.CloseHandle(handle)
+    print(f"当前进程PID:{pid} 成功已设置当前进程最高优先级 提高响应速度")
+
+
 def main():
     global BIT_GOD, WATCH_PERSON, shake_r, shake_t
     # 注册一个发布者
@@ -382,6 +392,11 @@ def main():
 
     processInitialization(no_wait_Queue)  # 进程初始化
     threadInitialization(no_wait_Queue)  # 线程初始化
+
+    # 获取当前进程的 ID
+    pid = win32api.GetCurrentProcessId()
+    # 设置进程的优先级为最高
+    set_process_priority(pid, win32process.REALTIME_PRIORITY_CLASS)
 
 
 if __name__ == '__main__':
