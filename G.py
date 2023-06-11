@@ -16,6 +16,7 @@ dark_themes = Color(
 )
 
 params_list = [
+    'use_fp_16',
     'shake_coefficient',
     'shake_coefficient_y',
     'shake_delay',

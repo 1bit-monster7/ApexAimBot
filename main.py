@@ -17,7 +17,7 @@ from pynput import mouse
 
 from G import params_list
 from function.OB import Publisher_Ui, Subscriber_Fun
-from function.PID_INCREMENT import PID_PLUS_PLUS
+from function.PID_INCREMENT import ADRC_PLUS, PID_PLUS_PLUS
 from function.automatic_armor_change import automatic_armor_change_func
 from function.configUtils import get_ini, set_config
 from function.delay_ms import delay_ms, left_down_not_right, left_down, right_down, left_or_right_down
@@ -69,6 +69,7 @@ ads = 1  # 开镜灵敏度
 shake_coefficient = 2.290904
 shake_coefficient_y = 2
 shake_delay = 6
+use_fp_16 = 0
 # 静态参数
 name_list = None
 top_window_name = 'win'
@@ -105,6 +106,7 @@ def _init_main(msg=''):
     # 同步所有ini的参数到py
     for key in params_list:
         globals()[key] = get_ini(key)
+
     # pid 初始化
     instantiation_pid_x = PID_PLUS_PLUS(0, pid_x_p, pid_x_i, pid_x_d)
     instantiation_pid_y = PID_PLUS_PLUS(0, pid_y_p, pid_y_i, pid_y_d)
@@ -200,10 +202,9 @@ def threadInitialization(no_wait_Queue):
     threading.Thread(target=run_ai, args=(no_wait_Queue,)).start()  # ai run
 
 
-def interface_img_gpt(img):
-    global model_imgsz, conf_thres, iou_thres, model
-    stride, names = model.stride, model.names,
-
+def interface_img_gpt_plus(img):
+    global model_imgsz, conf_thres, iou_thres, model, name_list
+    stride = model.stride
     # img = cv2.resize(img, (model_imgsz, model_imgsz))
     img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
 
@@ -215,10 +216,13 @@ def interface_img_gpt(img):
 
     with torch.no_grad():
         im = torch.from_numpy(im).to(model.device)
-        im = im.bfloat16() if model.fp16 else im.float()
+        if use_fp_16:
+            im = im.bfloat16()
+        else:
+            im = im.float()
         im /= 255
 
-        if len(im.shape) == 3:
+        if im.ndim == 3:
             im = im.unsqueeze(0)
 
         pred = model(im, augment=False, visualize=False)
@@ -233,16 +237,11 @@ def interface_img_gpt(img):
         det = pred[0]
         det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], img.shape).round()
         for *xyxy, conf, cls in reversed(det):
-            xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()
-
-            className = names[int(cls)]
-
-            if className == "teammate":
-                continue
-
-            conf_str = f"{int(100 * float(conf))}"
-
-            box_list.append((className, *xywh, conf_str))
+            if cls.item() != name_list.index("teammate"):  # 过滤队友标签
+                xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()
+                className = name_list[int(cls)]
+                conf_str = f"{int(100 * float(conf))}"
+                box_list.append((className, *xywh, conf_str))
 
     with torch.cuda.stream(cuda_stream):
         torch.cuda.synchronize()
@@ -287,7 +286,7 @@ def run_ai(no_wait_Queue):
     while True:
         # 初始化
         _range = 1.2 if left_down_not_right() else 0.8  # 0.5 - 1  值越小范围越小 越大距离越远越锁
-        _range_y = 0.8
+        _range_y = 0.5
         if is_loading:
             rect = (int(screen_width / 2 - grab_width / 2), int(screen_height / 2 - grab_height / 2), grab_width, grab_height)
             continue
@@ -298,7 +297,7 @@ def run_ai(no_wait_Queue):
             _search_time = _s((timer() - fps_tag) * 1000)  # 截图耗时
             # 3. 推理
             t1 = timer()
-            box_list = interface_img_gpt(img)
+            box_list = interface_img_gpt_plus(img)
             _pred_time = _s((timer() - t1) * 1000)  # 推理耗时
 
             t2 = timer()
@@ -310,7 +309,7 @@ def run_ai(no_wait_Queue):
             _for_time = _s((timer() - fps_tag) * 1000)
             _fps = (1 / float(_for_time)) * 1000
 
-            # print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}  |  处理坐标耗费时间：{_result_timer}  |  fps：{_fps}")
+            print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |  fps：{_fps}")
 
             # 有数据则锁人
             if result:
@@ -338,13 +337,13 @@ def run_ai(no_wait_Queue):
                         _pid_x = int(instantiation_pid_x.getMove(pos_min[0], min_step))
                         _pid_y = int(instantiation_pid_y.getMove((pos_min[1] - offset)))
                         _mouse(_pid_x, _pid_y)
-                        print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{min_step} offset：{offset}")
+                        # print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{min_step} offset：{offset}")
                     else:
                         offset = int(box_height * 0.2)
                         _pid_x = int(instantiation_pid_x.getMove(pos_min[0], max_step))
                         _pid_y = int(instantiation_pid_y.getMove((pos_min[1] - offset)))
                         _mouse(_pid_x, _pid_y)
-                        print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{max_step} pos_min：{pos_min[1]} offset：{offset}")
+                        # print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{max_step} pos_min：{pos_min[1]} offset：{offset}")
             # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
             if is_show_top_window:
                 # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
@@ -388,7 +387,6 @@ def main():
 if __name__ == '__main__':
     freeze_support()  # 解决多线程 pyinstall打包bug
     set_start_method('spawn')  # 多进程上下文设置
-
     # 初始化之前创建进程共享变量
     manager = multiprocessing.Manager()
     shake_r = manager.Value('d', 0.0)

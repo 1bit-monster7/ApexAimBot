@@ -60,9 +60,10 @@ def create_ui(BIT_GOD):
     grab_window_title = gr.inputs.Textbox(label="游戏名称", default=get_ini('grab_window_title'))
     screen_width = gr.inputs.Textbox(label="屏幕分辨率X", default=get_ini('screen_width'))
     screen_height = gr.inputs.Textbox(label="屏幕分辨率Y", default=get_ini('screen_height'))
-    debug = gr.Radio(['1', '0'], label="Debug", info="保存时是否重新载入模型 1 是开启 0 是关闭", value=str(get_ini('debug')))
-    is_show_top_window = gr.Radio(['1', '0'], label="显示窗口", info="右上角win窗口 1 是开启 0 是关闭", value=str(get_ini('is_show_top_window')))
-    aim_mod = gr.Radio(['0', '1', '2'], label="瞄准模式", info="1 左键 2右键 3左右", value=str(get_ini('aim_mod')))
+    use_fp_16 = gr.Radio(['0', '1'], label="FP16精度", info="是否FP16半精度 1 是开启 0 是关闭", value=str(get_ini('debug')))
+    debug = gr.Radio(['0', '1'], label="Debug", info="保存时是否重新载入模型 1 是开启 0 是关闭", value=str(get_ini('debug')))
+    is_show_top_window = gr.Radio(['0', '1'], label="显示窗口", info="右上角win窗口 1 是开启 0 是关闭", value=str(get_ini('is_show_top_window')))
+    aim_mod = gr.Radio(['0', '1', '2'], label="瞄准模式", info="0 左键 1右键 2左右", value=str(get_ini('aim_mod')))
     model_imgsz = gr.Radio(['320', '416', '640'], label="模型大小", info="训练时模型的大小", value=str(get_ini('model_imgsz')))  # 单选
     grab_width = gr.Slider(0, 1920, value=get_ini('grab_width'), label="截图范围", info="设置x轴截图范围值")  # 滑动条
     grab_height = gr.Slider(0, 1080, value=get_ini('grab_height'), label="截图范围", info="设置y轴截图范围值")  # 滑动条
@@ -103,7 +104,7 @@ def create_ui(BIT_GOD):
                     with gr.Row():
                         sens.render()
                         ads.render()
-                        modifier_value.render()
+                        use_fp_16.render()
             with gr.Row():
                 with gr.Tab("屏幕设置"):
                     with gr.Row():
@@ -121,6 +122,7 @@ def create_ui(BIT_GOD):
                     with gr.Row():
                         min_step.render()
                         max_step.render()
+                        modifier_value.render()
             with gr.Row():
                 with gr.Tab("模型设置"):
                     with gr.Row():
@@ -141,6 +143,7 @@ def create_ui(BIT_GOD):
                         pid_y_d.render()
         bottom2 = gr.Button(value="保存")
         bottom2.click(submit, inputs=[
+            use_fp_16,
             shake_coefficient,
             shake_coefficient_y,
             shake_delay,
