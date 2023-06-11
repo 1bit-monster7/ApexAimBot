@@ -6,7 +6,7 @@ import time
 import gradio as gr
 
 from G import params_list, dark_themes
-from function.configUtils import get_ini, _set_config, _write
+from function.configUtils import get_ini, set_config, _write
 
 config = configparser.ConfigParser()
 # 从1bit.ai.config文件中读取参数和值
@@ -27,7 +27,7 @@ def submit(*args):
     for val in args:
         key = params_list[count]  # key
         count += 1
-        _set_config(key, val)
+        set_config(key, val)
     _write()  # 写入ini
     time.sleep(0.5)
     notice_god.notify(f"注意：已修改参数 将根据最新的参数进行程序执行")
@@ -66,8 +66,8 @@ def create_ui(BIT_GOD):
     model_imgsz = gr.Radio(['320', '416', '640'], label="模型大小", info="训练时模型的大小", value=str(get_ini('model_imgsz')))  # 单选
     grab_width = gr.Slider(0, 1920, value=get_ini('grab_width'), label="截图范围", info="设置x轴截图范围值")  # 滑动条
     grab_height = gr.Slider(0, 1080, value=get_ini('grab_height'), label="截图范围", info="设置y轴截图范围值")  # 滑动条
-    min_step = gr.Slider(0, 100, step=1, value=get_ini('min_step'), label="最小可移动像素值", info="最小值 控制随机移动的最小值")  # 滑动条
-    max_step = gr.Slider(0, 200, step=1, value=get_ini('max_step'), label="最大可移动像素值", info="最大值 控制随机移动的最大步数")  # 滑动条
+    min_step = gr.Slider(0, 100, step=1, value=get_ini('min_step'), label="腰射最大移动像素值", info="腰射的最大可移动像素值")  # 滑动条
+    max_step = gr.Slider(0, 200, step=1, value=get_ini('max_step'), label="开镜最大移动像素值", info="右键瞄准时的最大可移动像素值")  # 滑动条
     sens = gr.Slider(0, 10, step=0.001, value=get_ini('sens'), label=" 鼠标速度", info="Apex 游戏设置里面鼠标速度")  # 滑动条
     ads = gr.Slider(0, 10, step=0.001, value=get_ini('ads'), label=" 开镜鼠标速度", info="ads Apex游戏内 开镜速度")  # 滑动条
     modifier_value = gr.Slider(0, 1, step=0.001, value=str(get_ini('modifier_value')), label="最终计算出的压枪系数 一般不需要手动调整", info="0 - 1 越小越压")  # 滑动条

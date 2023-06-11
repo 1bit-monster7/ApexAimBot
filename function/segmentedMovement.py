@@ -1,6 +1,5 @@
 import random
 
-from function.FOV import FOV_X, FOV_Y
 from function.logitech import Logitech
 
 last_x, last_y = 0, 0
@@ -10,64 +9,41 @@ def _mouse(x, y):
     Logitech.mouse.move(x, y)
 
 
-def segmented_movement_x(x, _min=10, _max=10, offset_y=0):
-    if abs(x) == 0 and abs(offset_y) == 0:
-        return
+def divide_with_floor(numerator, denominator):
+    if numerator < 0:  # 如果被除数为负数
+        numerator = abs(numerator)
 
-    _mouse(0, offset_y)
+    quotient = numerator // denominator
+    remainder = abs(numerator) % denominator
 
-    _to_x = int(x >= 0)
-    _random = get_random_integer(_min, _max)
+    if numerator < 0:  # 如果被除数为负数
+        remainder = denominator - remainder
 
-    _total_x, _remainder_x = cutting_num(x, _random)
-
-    total_move = _total_x
-
-    for i in range(total_move):
-        if i < _total_x:
-            _real_x = get_num_from_random(_to_x, _random)
-        else:
-            _real_x = 0
-        _mouse(int(FOV_X(_real_x)), 0)
-
-    if abs(_remainder_x) > 0:
-        _mouse(int(FOV_X(_remainder_x)), 0)
+    return quotient, remainder
 
 
-def segmented_movement_xy(x, y, _min=10, _max=10):
-    if abs(x) == 0 and abs(y) == 0:
-        return
+def generate_random_int(lower_bound, upper_bound):
+    """
+    生成随机整数
+    :return: 随机整数
+    """
+    return random.randint(lower_bound, upper_bound)
 
-    _to_x = int(x >= 0)
-    _to_y = int(y >= 0)
-    _random = get_random_integer(_min, _max)
 
-    _total_x, _remainder_x = cutting_num(x, _random)
-    sign_y = -1 if y < 0 else 1
-    _total_y, _remainder_y = cutting_num(y, _random)
-
-    total_move = max(_total_x, _total_y)
-
-    for i in range(total_move):
-        if i < _total_x:
-            _real_x = get_num_from_random(_to_x, _random)
-        else:
-            _real_x = 0
-
-        if i < _total_y:
-            if i == _total_y - 1:
-                _real_y = sign_y * get_num_from_random(1, abs(_remainder_y))
-            else:
-                _real_y = sign_y * _random
-        else:
-            _real_y = 0
-
-        _mouse(int(FOV_X(_real_x)), int(FOV_Y(_real_y)))
-
-    if abs(_remainder_x) > 0:
-        _mouse(int(FOV_X(_remainder_x)), 0)
-    if abs(_remainder_y) > 0:
-        _mouse(0, int(FOV_Y(_remainder_y)))
+def segmented_movement_x(x, y, step):
+    total, remainder = divide_with_floor(x, step)
+    # print(f"x:{x} 每次移动的像素值:{step} 移动总次数:{total} 余数:{remainder} before")
+    step = -step if x < 0 else step
+    remainder = -remainder if x < 0 else remainder
+    # print(f"x:{x} 每次移动的像素值:{step} 移动总次数:{total} 余数:{remainder}")
+    total_step = 0
+    for i in range(total):
+        _mouse(step, 0)
+        total_step += 1
+        print(f"已移动 {abs(total_step)} 步。 每次移动{step}像素")
+        # delay_ms(0)
+    _mouse(remainder, y)
+    # print(f'移动一次余数{remainder}和y轴')
 
 
 def get_num_from_random(_to, random_num):

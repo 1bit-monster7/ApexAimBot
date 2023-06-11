@@ -13,7 +13,7 @@ def _write():
     pass
 
 
-def _set_config(key, value):
+def set_config(key, value):
     value = str(value)  # 存入统一转字符串
     # 检查 textGroup 是否在 config 字典中
     if textGroup not in _config_bit:

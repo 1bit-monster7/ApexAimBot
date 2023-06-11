@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
         self.width = float(100)
         self.height = float(35)
         # 是否截图 调试的时候打开
-        self.save_pic = False
+        self.save_pic = True
         _, self.local_image = cv2.threshold(self.local_image, 127, 255, cv2.THRESH_BINARY_INV)
         self.mouse = c_mouse()
         keyboard.on_press_key("`", self.on_press_b)
@@ -54,7 +54,7 @@ class MainWindow(QMainWindow):
         if self.save_pic:
             print('从该位置截图：' + str(self.x) + ',' + str(self.y))
             print('截图长度：' + str(self.width) + ',高度' + str(self.height))
-            screen.save("game_plug_in/function/image/captured_image.png")
+            screen.save("function/image/ar.png")
         screen = np.array(screen)
         return cv2.cvtColor(screen, cv2.COLOR_BGR2RGB), screen
 

@@ -10,22 +10,22 @@ from timeit import default_timer as timer
 import cv2
 import numpy as np
 import torch
-import win32api
 import win32con
+import win32gui
 import winsound
 from pynput import mouse
 
 from G import params_list
 from function.OB import Publisher_Ui, Subscriber_Fun
-from function.PID_INCREMENT import PID_PLUS_GPT
+from function.PID_INCREMENT import PID_PLUS_PLUS
 from function.automatic_armor_change import automatic_armor_change_func
-from function.configUtils import get_ini, _set_config
-from function.delay_ms import delay_ms
+from function.configUtils import get_ini, set_config
+from function.delay_ms import delay_ms, left_down_not_right, left_down, right_down, left_or_right_down
 from function.grab_screen import update_hwnd_title, grab_gpt
 from function.identify_firearms import find_gun_main
 from function.logitech import Logitech
-from function.pressTheGun import _down_gun_fun
-from function.segmentedMovement import segmented_movement_xy
+from function.pressTheGun import down_gun_fun_c
+from function.segmentedMovement import generate_random_int, _mouse
 from function.shake_the_gun import shake_gan_main
 from function.web_ui import create_ui
 from models.common import DetectMultiBackend
@@ -96,19 +96,6 @@ shake_t = 0.0
 md_value = 0.0
 
 
-def is_key_pressed(key_code):
-    """检查指定的按键是否被按下"""
-    return win32api.GetAsyncKeyState(key_code) < 0
-
-
-def is_left_click():
-    return is_key_pressed(win32con.VK_LBUTTON)
-
-
-def is_right_click():
-    return is_key_pressed(win32con.VK_RBUTTON)
-
-
 def _init_main(msg=''):
     global model, name_list, is_loading, modifier_value, sens, ads, first_load, shake_r, shake_t, shake_y
     print(msg)
@@ -119,8 +106,8 @@ def _init_main(msg=''):
     for key in params_list:
         globals()[key] = get_ini(key)
     # pid 初始化
-    instantiation_pid_x = PID_PLUS_GPT(0, pid_x_p, pid_x_i, pid_x_d)
-    instantiation_pid_y = PID_PLUS_GPT(0, pid_y_p, pid_y_i, pid_y_d)
+    instantiation_pid_x = PID_PLUS_PLUS(0, pid_x_p, pid_x_i, pid_x_d)
+    instantiation_pid_y = PID_PLUS_PLUS(0, pid_y_p, pid_y_i, pid_y_d)
 
     # 压枪系数计算
     zoom_sens = 1 / ads
@@ -128,7 +115,7 @@ def _init_main(msg=''):
 
     # 更新进程共享变量
     shake_r.value, shake_y.value, shake_t.value = shake_coefficient, shake_coefficient_y, shake_delay  # 共享变量赋值
-    _set_config('modifier_value', modifier_value)  # 计算后的值存储
+    set_config('modifier_value', modifier_value)  # 计算后的值存储
 
     # 第一次加载或debu模式为真
     if debug or first_load == 0:
@@ -141,7 +128,7 @@ def _init_main(msg=''):
         model.warmup(imgsz=(1, 3, *[model_imgsz, model_imgsz]))  # warmup
         name_list = [name for name in model.names.values()]  # 拿到标签类
         print(name_list, '当前模型分类')
-        print(f"分辨率:{screen_width}*{screen_height}p 截图宽高:{grab_width, grab_height} 窗口标题:{grab_window_title} 窗口开关：{is_show_top_window}")
+        print(f"分辨率:{screen_width}*{screen_height}p 截图宽高:{grab_width, grab_height} 窗口标题:{grab_window_title} 窗口开关：{is_show_top_window}  ")
     is_loading = False  # 加载完成可以开始推理
 
 
@@ -149,8 +136,6 @@ def send_nearest_pos_to_mouse_ctrl(box_list):
     global name_list
     if not box_list:
         return None
-    grab_center_x = grab_width / 2
-    grab_center_y = grab_height / 2
 
     min_distance_sq = float('inf')
     min_position = None
@@ -161,8 +146,6 @@ def send_nearest_pos_to_mouse_ctrl(box_list):
     half_grab_width = grab_width / 2
     half_grab_height = grab_height / 2
 
-    y_offset = half_grab_height * 0.05
-
     for box in box_list:
         if box[0] not in name_list:
             continue
@@ -171,10 +154,10 @@ def send_nearest_pos_to_mouse_ctrl(box_list):
         box_width = box[3] * grab_width  # 目标框宽度
         box_height = box[4] * grab_height  # 目标框高度
 
-        distance_sq = (box_center_x - grab_center_x) ** 2 + (box_center_y - grab_center_y) ** 2
+        distance_sq = (box_center_x - half_grab_width) ** 2 + (box_center_y - half_grab_height) ** 2
         if distance_sq < min_distance_sq:
             min_distance_sq = distance_sq
-            min_position = (box_center_x - half_grab_width, box_center_y - half_grab_height - y_offset)
+            min_position = (box_center_x - half_grab_width, box_center_y - half_grab_height)
 
     if min_position is None:
         return None
@@ -209,7 +192,7 @@ def processInitialization(no_wait_Queue):
 
     Process(target=automatic_armor_change_func).start()  # 自动换甲
     Process(target=find_gun_main, args=(_C,)).start()  # 自动识别压枪
-    Process(target=_down_gun_fun, args=(modifier_value, _C, no_wait_Queue)).start()  # 得到压枪数据
+    Process(target=down_gun_fun_c, args=(modifier_value, _C, no_wait_Queue)).start()  # 得到压枪数据
     Process(target=shake_gan_main, args=(shake_r, shake_t, shake_y)).start()  # 抖枪宏 通用宏
 
 
@@ -219,58 +202,50 @@ def threadInitialization(no_wait_Queue):
     threading.Thread(target=run_ai, args=(no_wait_Queue,)).start()  # ai run
 
 
-def interface_img(img):
+def interface_img_gpt(img):
     global model_imgsz, conf_thres, iou_thres, model
-    stride, names = model.stride, model.names
+    stride, names = model.stride, model.names,
 
-    img = cv2.resize(img, (model_imgsz, model_imgsz))
+    # img = cv2.resize(img, (model_imgsz, model_imgsz))
+    img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
 
-    img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)  # 转换
+    im = letterbox(img, model_imgsz, stride=stride, auto=True)[0]
+    im = im.transpose((2, 0, 1))[::-1]
+    im = np.ascontiguousarray(im)
 
-    # Load image
-    im = letterbox(img, model_imgsz, stride=stride, auto=True)[0]  # padded resize
-    im = im.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
-    im = np.ascontiguousarray(im)  # contiguous
-
-    # GPU optimization
     torch.backends.cudnn.benchmark = True
 
-    with torch.no_grad():  # Disable gradient calculation
+    with torch.no_grad():
         im = torch.from_numpy(im).to(model.device)
-        im = im.bfloat16() if model.fp16 else im.float()  # uint8 to bfloat16/float32
-        im /= 255  # 0 - 255 to 0.0 - 1.0
+        im = im.bfloat16() if model.fp16 else im.float()
+        im /= 255
 
         if len(im.shape) == 3:
-            im = im.unsqueeze(0)  # expand for batch dim
+            im = im.unsqueeze(0)
 
-        # Inference
         pred = model(im, augment=False, visualize=False)
-
-        # NMS
-        pred = non_max_suppression(pred, conf_thres, iou_thres, max_det=1000)
+        pred = non_max_suppression(pred, conf_thres, iou_thres, max_det=5)
 
     box_list = []
-    gn = torch.tensor(img.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+    gn = torch.tensor(img.shape)[[1, 0, 1, 0]]
 
-    # Define CUDA stream for synchronization
     cuda_stream = torch.cuda.Stream()
 
-    for i, det in enumerate(pred):  # per image
-        if len(det):
-            # Rescale boxes from img_size to im0 size
-            det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], img.shape).round()
-            # Write results
-            for *xyxy, conf, cls in reversed(det):
-                xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+    if len(pred[0]):
+        det = pred[0]
+        det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], img.shape).round()
 
-                className = names[int(cls)]
+        for *xyxy, conf, cls in reversed(det):
+            xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()
 
-                if className == "teammate":  # Filter teammates
-                    continue
+            className = names[int(cls)]
 
-                conf_str = f"{int(100 * float(conf))}"
+            if className == "teammate":
+                continue
 
-                box_list.append((className, *xywh, conf_str))
+            conf_str = f"{int(100 * float(conf))}"
+
+            box_list.append((className, *xywh, conf_str))
 
     with torch.cuda.stream(cuda_stream):
         torch.cuda.synchronize()
@@ -278,71 +253,123 @@ def interface_img(img):
     return box_list
 
 
+def draw_fps(img, fps_tag, fps_list):
+    t = timer() - fps_tag
+    if len(fps_list) > 10:
+        fps_list.pop(0)
+        fps_list.append(t)
+    else:
+        fps_list.append(t)
+    cv2.putText(img, str(int(1 / np.mean(fps_list))), (20, 100), cv2.FONT_HERSHEY_COMPLEX, 4, (255, 255, 255), 6)
+    return img
+
+
+def draw_box(img, box_list):
+    global name_list
+    if len(box_list) == 0:
+        return img
+    for _box in box_list:
+        if _box[0] not in name_list:
+            continue
+        x_center = _box[1] * grab_width
+        y_center = _box[2] * grab_height
+        w = _box[3] * grab_width
+        h = _box[4] * grab_height
+        x1, y1 = int(x_center - w / 2), int(y_center - h / 2)
+        x2, y2 = int(x_center + w / 2), int(y_center + h / 2)
+        cv2.rectangle(img, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=4)
+        cv2.putText(img, f'{_box[0]}_{_box[5]}%', (x1, y1), cv2.FONT_HERSHEY_COMPLEX, 0.8, (0, 0, 255),
+                    2)  # box[0] 是类别名
+    return img
+
+
+@torch.no_grad()  # 不要删 (do not delete it )
 def run_ai(no_wait_Queue):
     global model
-    fps_count = 0  # fps计次
-    fps_list = []  # fps list
+    fps_l = []
+    rect = (int(screen_width / 2 - grab_width / 2), int(screen_height / 2 - grab_height / 2), grab_width, grab_height)
     while True:
+        # 初始化
+        _range = 1.2 if left_down_not_right() else 0.8  # 0.5 - 1  值越小范围越小 越大距离越远越锁
+        _range_y = 0.8
         if is_loading:
+            rect = (int(screen_width / 2 - grab_width / 2), int(screen_height / 2 - grab_height / 2), grab_width, grab_height)
             continue
         else:
-            # 非阻塞方式获取队列中的变量值
-            # if not no_wait_Queue.empty():
-            #     offset_x, offset_y = no_wait_Queue.get_nowait()
-            # else:
-            #     offset_x, offset_y = 0, 0
             # 2. 截图
             fps_tag = timer()
-            rect = (int(screen_width / 2 - grab_width / 2), int(screen_height / 2 - grab_height / 2), grab_width, grab_height)  # left,top,width,height
             img = grab_gpt(window_title=grab_window_title, grab_rect=rect)
             _search_time = _s((timer() - fps_tag) * 1000)  # 截图耗时
             # 3. 推理
             t1 = timer()
-            box_list = interface_img(img)
+            box_list = interface_img_gpt(img)
             _pred_time = _s((timer() - t1) * 1000)  # 推理耗时
+
+            t2 = timer()
+            # 4. 发送最近坐标
+            result = send_nearest_pos_to_mouse_ctrl(box_list)
+            _result_timer = _s((timer() - t2) * 1000)  # 推理耗时
+
             # FPS 计算
             _for_time = _s((timer() - fps_tag) * 1000)
             _fps = (1 / float(_for_time)) * 1000
-            fps_list.append(_fps)
-            fps_count += 1
 
-            if fps_count % 500 == 0:
-                average_fps = np.average(fps_list)
-                fps_list = []
-                fps_count = 0
-                print(f"500抡平均FPS：{_s(average_fps)}")
-
-            # 4. 发送最近坐标
-            result = send_nearest_pos_to_mouse_ctrl(box_list)
+            print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}  |  处理坐标耗费时间：{_result_timer}  |  fps：{_fps}")
 
             # 有数据则锁人
             if result:
                 pos_min, box_width, box_height = result
 
-                abs_x = pos_min[0] if pos_min[0] > 0 else -pos_min[0]
+                abs_x = abs(pos_min[0])
 
-                abs_y = pos_min[1] if pos_min[1] > 0 else -pos_min[1]
-
-                _range = 1  # 0.5 - 1  值越小范围越小 越大距离越远越锁
-                _range_y = 1.2
-                # have_luck = abs_x <= (box_width * _range) and abs_y <= (box_height * _range)
-                have_luck = abs_x <= (box_width * _range) and abs_y <= (box_height * _range_y)
+                abs_y = abs(pos_min[1])
 
                 if aim_mod == 0:
-                    press = is_left_click()
+                    press = left_down()
                 elif aim_mod == 1:
-
-                    press = is_right_click()
+                    press = right_down()
                 elif aim_mod == 2:
-                    press = is_left_click() or is_right_click()
+                    press = left_or_right_down()
                 else:
                     return print('瞄准模式异常')
+                have_luck = abs_x <= (box_width * _range) and abs_y <= (box_height * _range_y)
 
                 if is_lock_radio and press and have_luck:
                     no_wait_Queue.put(True)  # 告诉压枪进程 不要压x轴
-                    # 第一次时不启用i 解决过冲问题
-                    _pid_x = int(instantiation_pid_x.getMove(int(pos_min[0])))
-                    segmented_movement_xy(_pid_x, 0, min_step, max_step)  # 分段移动
+                    # random_step = generate_random_int(min_step, max_step)
+                    if left_down_not_right():
+                        _pid_x = int(instantiation_pid_x.getMove(pos_min[0], min_step))
+                        _pid_y = int(instantiation_pid_y.getMove(pos_min[1] - (box_height * 0.2)))
+                        _mouse(_pid_x, _pid_y)
+                        print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{min_step}")
+                    else:
+                        _pid_x = int(instantiation_pid_x.getMove(pos_min[0], max_step))
+                        _pid_y = int(instantiation_pid_y.getMove(pos_min[1] - (box_height * 0.15)))
+                        _mouse(_pid_x, _pid_y)
+                        print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{max_step}")
+            # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+            if is_show_top_window:
+                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+                # 5. 画框
+                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+                img = draw_box(img, box_list)
+
+                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+                # 6. FPS
+                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+                img = draw_fps(img, fps_tag, fps_l)
+
+                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+                # 7. 窗口显示
+                # --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- #
+                cv2.namedWindow(top_window_name, cv2.WINDOW_NORMAL)
+                cv2.resizeWindow(top_window_name, top_window_width,
+                                 int(top_window_width * grab_height / grab_width))  # 重置窗口大小
+                hwnd = win32gui.FindWindow(None, top_window_name)
+                win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, 1900 - top_window_width, 150, 0, 0,
+                                      win32con.SWP_NOSIZE)
+                cv2.imshow(top_window_name, img)
+                cv2.waitKey(1)
 
 
 def main():

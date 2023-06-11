@@ -26,7 +26,7 @@ class PID_PLUS(object):
         return self.PIDOutput
 
 
-class PID_PLUS_GPT(object):
+class PID_PLUS_PLUS(object):
     def __init__(self, exp_val, P: float, I: float, D: float):
         self.Kp = P
         self.Ki = I
@@ -40,20 +40,19 @@ class PID_PLUS_GPT(object):
         self.LastError = 0.0
         self.LastLastError = 0.0
 
-        self.first_get_move = True
-
     # 设置PID控制器参数
-    def getMove(self, sub_s):
+    def getMove(self, sub_s, max_output=None):
         self.Error = sub_s - self.SystemOutput
         # 计算增量
-        if self.first_get_move:
-            IncrementalValue = self.Kp * (self.Error - self.LastError)
-            self.first_get_move = False
-        else:
-            IncrementalValue = self.Kp * (self.Error - self.LastError) \
-                               + self.Ki * self.Error + self.Kd * (self.Error - 2 * self.LastError + self.LastLastError)
+        IncrementalValue = self.Kp * (self.Error - self.LastError) \
+                           + self.Ki * self.Error + self.Kd * (self.Error - 2 * self.LastError + self.LastLastError)
         # 计算输出
         self.PIDOutput += IncrementalValue
+
+        # 限制输出值在最大步长范围内 (如果 max_output 参数提供)
+        if max_output is not None:
+            self.PIDOutput = max(min(self.PIDOutput, max_output), -max_output)
+
         self.LastLastError = self.LastError
         self.LastError = self.Error
         return self.PIDOutput

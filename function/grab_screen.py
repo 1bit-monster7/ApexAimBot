@@ -8,6 +8,7 @@ win32_cls.capture()     640: 312        2560: 35
 dxgi.cap()              640: 312        2560: 52
 mss.mss().grab()        640: 74         2560: 36
 """
+import cv2
 import numpy as np
 import win32con
 import win32gui
@@ -83,7 +84,7 @@ def grab_gpt(window_title, grab_rect=None):
     signed_ints_array = saveBitMap.GetBitmapBits(True)
     img = np.frombuffer(signed_ints_array, dtype="uint8")
     img.shape = (h, w, 4)
-    # img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+    # img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB) # RGB
     win32gui.DeleteObject(saveBitMap.GetHandle())
     saveDC.DeleteDC()
     mfcDC.DeleteDC()
