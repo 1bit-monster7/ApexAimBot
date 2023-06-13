@@ -3,10 +3,12 @@ import os
 
 try:
     root = os.path.abspath(os.path.dirname(__file__))
-    driver = ctypes.CDLL(f'{root}/ghub_device.dll')
-    ok = driver.device_open() == 1  # 该驱动每个进程可打开一个实例
-    if not ok:
-        print('Error, GHUB or LGS driver not found')
+    driver = ctypes.CDLL(f'{root}/ghub_mouse.dll')
+    ok = driver.mouse_open() == 1  # 该驱动每个进程可打开一个实例
+    # if ok:
+    #     print('罗技鼠标调用成功!')
+    # else:
+    #     print('罗技调用失败')
 except FileNotFoundError:
     print(f'Error, DLL file not found')
 

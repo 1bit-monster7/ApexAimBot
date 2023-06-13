@@ -60,7 +60,7 @@ def create_ui(BIT_GOD):
     grab_window_title = gr.inputs.Textbox(label="游戏名称", default=get_ini('grab_window_title'))
     screen_width = gr.inputs.Textbox(label="屏幕分辨率X", default=get_ini('screen_width'))
     screen_height = gr.inputs.Textbox(label="屏幕分辨率Y", default=get_ini('screen_height'))
-    use_fp_16 = gr.Radio(['0', '1'], label="FP16精度", info="是否FP16半精度 1 是开启 0 是关闭", value=str(get_ini('debug')))
+    use_fp_16 = gr.Radio(['0', '1'], label="FP16精度", info="是否FP16半精度 1 是开启 0 是关闭如果关闭则启用float32更精准但更慢", value=str(get_ini('debug')))
     debug = gr.Radio(['0', '1'], label="Debug", info="保存时是否重新载入模型 1 是开启 0 是关闭", value=str(get_ini('debug')))
     is_show_top_window = gr.Radio(['0', '1'], label="显示窗口", info="右上角win窗口 1 是开启 0 是关闭", value=str(get_ini('is_show_top_window')))
     aim_mod = gr.Radio(['0', '1', '2'], label="瞄准模式", info="0 左键 1右键 2左右", value=str(get_ini('aim_mod')))

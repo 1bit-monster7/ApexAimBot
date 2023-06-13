@@ -13,11 +13,8 @@ Sleep = windll.kernel32.Sleep
 pressure_gun_switch = True
 
 
-def shake_the_gun_fun(skr, skt, sky):
+def shake_the_gun_fun(r, t, y):
     while True:
-        r = skr.value
-        t = skt.value
-        y = sky.value
         # 左右键按下时 且 压枪控制打开时
         if pressure_gun_switch and left_down():
             delay_move(-r, r, t)
@@ -43,9 +40,7 @@ def on_press(key):
 
 
 def shake_gan_main(shake_r, shake_t, shake_y):
-    print(f"抖枪宏 load successful 抖动幅度{shake_r.value} 抖动延时{shake_t.value} F12开关")
-    print(f'抖枪宏：{"开" if pressure_gun_switch else "关"}')
+    print(f"抖枪宏 load successful 抖动幅度{shake_r} 抖动延时{shake_t} F12开关 {'开' if pressure_gun_switch else '关'}")
     listener_keyboard = keyboard.Listener(on_press=on_press)
     listener_keyboard.start()
-    # _dt_gun()
     shake_the_gun_fun(shake_r, shake_t, shake_y)

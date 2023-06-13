@@ -91,7 +91,7 @@ def export_formats():
         ['TensorFlow Lite', 'tflite', '.tflite', True, False],
         ['TensorFlow Edge TPU', 'edgetpu', '_edgetpu.tflite', False, False],
         ['TensorFlow.js', 'tfjs', '_web_model', False, False],
-        ['PaddlePaddle', 'paddle', '_paddle_model', True, True],]
+        ['PaddlePaddle', 'paddle', '_paddle_model', True, True], ]
     return pd.DataFrame(x, columns=['Format', 'Argument', 'Suffix', 'CPU', 'GPU'])
 
 
@@ -447,9 +447,9 @@ def export_tfjs(file, prefix=colorstr('TensorFlow.js:')):
             r'"Identity.?.?": {"name": "Identity.?.?"}, '
             r'"Identity.?.?": {"name": "Identity.?.?"}, '
             r'"Identity.?.?": {"name": "Identity.?.?"}}}', r'{"outputs": {"Identity": {"name": "Identity"}, '
-            r'"Identity_1": {"name": "Identity_1"}, '
-            r'"Identity_2": {"name": "Identity_2"}, '
-            r'"Identity_3": {"name": "Identity_3"}}}', json)
+                                                           r'"Identity_1": {"name": "Identity_1"}, '
+                                                           r'"Identity_2": {"name": "Identity_2"}, '
+                                                           r'"Identity_3": {"name": "Identity_3"}}}', json)
         j.write(subst)
     return f, None
 
@@ -495,7 +495,7 @@ def run(
         batch_size=1,  # batch size
         device='cpu',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         include=('torchscript', 'onnx'),  # include formats
-        half=True,  # FP16 half-precision export
+        half=False,  # FP16 half-precision export
         inplace=False,  # set YOLOv5 Detect() inplace=True
         keras=False,  # use Keras
         optimize=False,  # TorchScript: optimize for mobile
@@ -512,6 +512,8 @@ def run(
         iou_thres=0.45,  # TF.js NMS: IoU threshold
         conf_thres=0.25,  # TF.js NMS: confidence threshold
 ):
+    print(dynamic, 'dynamic')
+    print(half, 'half')
     t = time.time()
     include = [x.lower() for x in include]  # to lowercase
     fmts = tuple(export_formats()['Argument'][1:])  # --include arguments
@@ -522,7 +524,7 @@ def run(
 
     # Load PyTorch model
     device = select_device(device)
-    if True:
+    if half:
         assert device.type != 'cpu' or coreml, '--half only compatible with GPU export, i.e. use --device 0'
         assert not dynamic, '--half not compatible with --dynamic, i.e. use either --half or --dynamic but not both'
     model = attempt_load(weights, device=device, inplace=True, fuse=True)  # load FP32 model
@@ -612,16 +614,16 @@ def run(
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, default=ROOT / 'function/yaml/coco128.yaml', help='dataset.yaml path')
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / '416_n_model.pt', help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'APEX.pt', help='model.pt path(s)')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[416, 416], help='image (h, w)')
     parser.add_argument('--batch-size', type=int, default=1, help='batch size')
     parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--half', action='store_true', help='FP16 half-precision export')
+    parser.add_argument('--half', default=False, action='store_true', help='FP16 half-precision export')
     parser.add_argument('--inplace', action='store_true', help='set YOLOv5 Detect() inplace=True')
     parser.add_argument('--keras', action='store_true', help='TF: use Keras')
     parser.add_argument('--optimize', action='store_true', help='TorchScript: optimize for mobile')
     parser.add_argument('--int8', action='store_true', help='CoreML/TF INT8 quantization')
-    parser.add_argument('--dynamic', action='store_true', help='ONNX/TF/TensorRT: dynamic axes')
+    parser.add_argument('--dynamic', default=False,  action='store_true', help='ONNX/TF/TensorRT: dynamic axes')
     parser.add_argument('--simplify', action='store_true', help='ONNX: simplify model')
     parser.add_argument('--opset', type=int, default=12, help='ONNX: opset version')
     parser.add_argument('--verbose', action='store_true', help='TensorRT: verbose log')
@@ -635,7 +637,7 @@ def parse_opt():
     parser.add_argument(
         '--include',
         nargs='+',
-        default=['engine'],
+        default=['onnx'],
         help='torchscript, onnx, openvino, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, paddle')
     opt = parser.parse_args()
     print_args(vars(opt))

@@ -88,7 +88,6 @@ def down_gun_fun_c(modifier_value, t_C, no_wait_Queue):
                         _mouse(0, offset_y)
                     else:
                         _mouse(offset_x, offset_y)
-
                     # no_wait_Queue.put((offset_x, offset_y)) # 通知主进程
                     delay_ms(int(G.recoil_patterns[active_weapon][i][2] * 1000))
                     flag = True  # 如果代码执行到这里，说明压枪成功，将标志设置为 True

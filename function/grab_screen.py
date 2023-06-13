@@ -89,7 +89,7 @@ def grab_gpt(window_title, grab_rect=None):
     saveDC.DeleteDC()
     mfcDC.DeleteDC()
     win32gui.ReleaseDC(hwnd, hwndDC)  # 释放 DC 资源
-
+    img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
     return img
 
 

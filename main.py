@@ -19,7 +19,7 @@ from pynput import mouse
 
 from G import params_list
 from function.OB import Publisher_Ui, Subscriber_Fun
-from function.PID_INCREMENT import PID_PLUS_PLUS
+from function.PID import PID_PLUS_PLUS
 from function.automatic_armor_change import automatic_armor_change_func
 from function.configUtils import get_ini, set_config
 from function.delay_ms import delay_ms, left_down_not_right, left_down, right_down, left_or_right_down
@@ -118,7 +118,7 @@ def _init_main(msg=''):
     modifier_value = 4 / sens * zoom_sens
 
     # 更新进程共享变量
-    shake_r.value, shake_y.value, shake_t.value = shake_coefficient, shake_coefficient_y, shake_delay  # 共享变量赋值
+    # shake_r.value, shake_y.value, shake_t.value = shake_coefficient, shake_coefficient_y, shake_delay  # 共享变量赋值
     set_config('modifier_value', modifier_value)  # 计算后的值存储
 
     # 第一次加载或debu模式为真
@@ -195,7 +195,7 @@ def processInitialization(no_wait_Queue):
     Process(target=automatic_armor_change_func).start()  # 自动换甲
     Process(target=find_gun_main, args=(_C,)).start()  # 自动识别压枪
     Process(target=down_gun_fun_c, args=(modifier_value, _C, no_wait_Queue)).start()  # 得到压枪数据
-    Process(target=shake_gan_main, args=(shake_r, shake_t, shake_y)).start()  # 抖枪宏 通用宏
+    Process(target=shake_gan_main, args=(shake_coefficient, shake_delay,shake_coefficient_y)).start()  # 抖枪宏 通用宏
 
 
 def threadInitialization(no_wait_Queue):
@@ -207,33 +207,27 @@ def threadInitialization(no_wait_Queue):
 def interface_img_gpt_plus(img):
     global model_imgsz, conf_thres, iou_thres, model, name_list
     stride = model.stride
-    # img = cv2.resize(img, (model_imgsz, model_imgsz))
     img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
 
     im = letterbox(img, model_imgsz, stride=stride, auto=True)[0]
-    im = im.transpose((2, 0, 1))[::-1]
+    im = im.transpose((2, 0, 1))
     im = np.ascontiguousarray(im)
 
-    torch.backends.cudnn.benchmark = True
+    im = torch.from_numpy(im).to(model.device)
 
+    if use_fp_16:
+        im = im.bfloat16()
+    else:
+        im = im.float()
+    im /= 255.0
+
+    im = im.unsqueeze(0)
     with torch.no_grad():
-        im = torch.from_numpy(im).to(model.device)
-        if use_fp_16:
-            im = im.bfloat16()
-        else:
-            im = im.float()
-        im /= 255
-
-        if im.ndim == 3:
-            im = im.unsqueeze(0)
-
         pred = model(im, augment=False, visualize=False)
         pred = non_max_suppression(pred, conf_thres, iou_thres, max_det=5)
 
     box_list = []
     gn = torch.tensor(img.shape)[[1, 0, 1, 0]]
-
-    cuda_stream = torch.cuda.Stream()
 
     if len(pred[0]):
         det = pred[0]
@@ -244,9 +238,6 @@ def interface_img_gpt_plus(img):
                 className = name_list[int(cls)]
                 conf_str = f"{int(100 * float(conf))}"
                 box_list.append((className, *xywh, conf_str))
-
-    with torch.cuda.stream(cuda_stream):
-        torch.cuda.synchronize()
 
     return box_list
 
@@ -311,7 +302,7 @@ def run_ai(no_wait_Queue):
             _for_time = _s((timer() - fps_tag) * 1000)
             _fps = (1 / float(_for_time)) * 1000
 
-            print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |  fps：{_fps}")
+            # print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |  fps：{_fps}")
 
             # 有数据则锁人
             if result:
@@ -329,19 +320,18 @@ def run_ai(no_wait_Queue):
                     press = left_or_right_down()
                 else:
                     return print('瞄准模式异常')
+
                 have_luck = abs_x <= (box_width * _range) and abs_y <= (box_height * _range_y)
 
                 if is_lock_radio and press and have_luck:
                     no_wait_Queue.put(True)  # 告诉压枪进程 不要压x轴
-                    # random_step = generate_random_int(min_step, max_step)
+                    offset = int(box_height * 0.2)
                     if left_down_not_right():
-                        offset = int(box_height * 0.2)
                         _pid_x = int(instantiation_pid_x.getMove(pos_min[0], min_step))
                         _pid_y = int(instantiation_pid_y.getMove((pos_min[1] - offset)))
                         _mouse(_pid_x, _pid_y)
                         # print(f"移动距离: x：{_pid_x} y：{_pid_y} 最大限制步长:{min_step} offset：{offset}")
                     else:
-                        offset = int(box_height * 0.2)
                         _pid_x = int(instantiation_pid_x.getMove(pos_min[0], max_step))
                         _pid_y = int(instantiation_pid_y.getMove((pos_min[1] - offset)))
                         _mouse(_pid_x, _pid_y)
@@ -372,7 +362,6 @@ def run_ai(no_wait_Queue):
 
 
 def set_process_priority(pid, priority):
-
     handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, False, pid)
     win32process.SetPriorityClass(handle, priority)
     win32api.CloseHandle(handle)
@@ -402,12 +391,6 @@ def main():
 if __name__ == '__main__':
     freeze_support()  # 解决多线程 pyinstall打包bug
     set_start_method('spawn')  # 多进程上下文设置
-    # 初始化之前创建进程共享变量
-    manager = multiprocessing.Manager()
-    shake_r = manager.Value('d', 0.0)
-    shake_t = manager.Value('d', 0.0)
-    shake_y = manager.Value('d', 0.0)
-
     _init_main()  # 初始化参数
     main()  # 主程序
     create_ui(BIT_GOD)  # 创建ui 并将发布者传递给ui
