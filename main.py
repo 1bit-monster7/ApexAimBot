@@ -96,6 +96,7 @@ first_load = 0
 # 通信 Queue
 shake_r = 0.0
 shake_t = 0.0
+shake_y=0.0
 md_value = 0.0
 
 
@@ -128,7 +129,9 @@ def _init_main(msg=''):
         data = ROOT / 'function' / 'yaml' / 'coco128.yaml'
         device = select_device('')
         w = ROOT / 'function' / 'weights' / weight
-        model = DetectMultiBackend(w, device=device, dnn=False, data=data, fp16=True)
+        fp16 = True if use_fp_16 else False
+        print(f"是否开启FP16:{fp16}")
+        model = DetectMultiBackend(w, device=device, dnn=False, data=data, fp16=fp16)
         model.warmup(imgsz=(1, 3, *[model_imgsz, model_imgsz]))  # warmup
         name_list = [name for name in model.names.values()]  # 拿到标签类
         print(name_list, '当前模型分类')
@@ -214,11 +217,13 @@ def interface_img_gpt_plus(img):
     im = np.ascontiguousarray(im)
 
     im = torch.from_numpy(im).to(model.device)
-
-    if use_fp_16:
-        im = im.bfloat16()
+    fp16 = True if use_fp_16 else False
+    if fp16:
+        # im = im.bfloat16()
+        im = im.half()
     else:
         im = im.float()
+
     im /= 255.0
 
     im = im.unsqueeze(0)
@@ -302,7 +307,7 @@ def run_ai(no_wait_Queue):
             _for_time = _s((timer() - fps_tag) * 1000)
             _fps = (1 / float(_for_time)) * 1000
 
-            # print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |  fps：{_fps}")
+            print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |  fps：{_fps}")
 
             # 有数据则锁人
             if result:
