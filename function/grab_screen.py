@@ -84,7 +84,6 @@ def grab_gpt(window_title, grab_rect=None):
     signed_ints_array = saveBitMap.GetBitmapBits(True)
     img = np.frombuffer(signed_ints_array, dtype="uint8")
     img.shape = (h, w, 4)
-    # img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB) # RGB
     win32gui.DeleteObject(saveBitMap.GetHandle())
     saveDC.DeleteDC()
     mfcDC.DeleteDC()

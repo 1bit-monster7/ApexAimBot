@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
         self.width = float(100)
         self.height = float(35)
         # 是否截图 调试的时候打开
-        self.save_pic = True
+        self.save_pic = False
         _, self.local_image = cv2.threshold(self.local_image, 127, 255, cv2.THRESH_BINARY_INV)
         self.mouse = c_mouse()
         keyboard.on_press_key("`", self.on_press_b)

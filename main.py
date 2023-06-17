@@ -32,7 +32,7 @@ from function.shake_the_gun import shake_gan_main
 from function.web_ui import create_ui
 from models.common import DetectMultiBackend
 from utils.augmentations import letterbox
-from utils.general import non_max_suppression, scale_boxes, xyxy2xywh
+from utils.general import non_max_suppression, scale_boxes, xyxy2xywh, Profile
 from utils.torch_utils import select_device
 
 # 取当前py文件运行目录
@@ -96,7 +96,7 @@ first_load = 0
 # 通信 Queue
 shake_r = 0.0
 shake_t = 0.0
-shake_y=0.0
+shake_y = 0.0
 md_value = 0.0
 
 
@@ -198,52 +198,61 @@ def processInitialization(no_wait_Queue):
     Process(target=automatic_armor_change_func).start()  # 自动换甲
     Process(target=find_gun_main, args=(_C,)).start()  # 自动识别压枪
     Process(target=down_gun_fun_c, args=(modifier_value, _C, no_wait_Queue)).start()  # 得到压枪数据
-    Process(target=shake_gan_main, args=(shake_coefficient, shake_delay,shake_coefficient_y)).start()  # 抖枪宏 通用宏
+    Process(target=shake_gan_main, args=(shake_coefficient, shake_delay, shake_coefficient_y)).start()  # 抖枪宏 通用宏
 
 
 def threadInitialization(no_wait_Queue):
     update_hwnd_title()  # get class windows
-    mouse.Listener(on_click=on_click).start()
-    threading.Thread(target=run_ai, args=(no_wait_Queue,)).start()  # ai run
+    m = mouse.Listener(on_click=on_click)
+    r = threading.Thread(target=run_ai, args=(no_wait_Queue,))  # ai run
+    m.start()
+    r.start()
+
+    # m.join()
+    # r.join()
 
 
 def interface_img_gpt_plus(img):
     global model_imgsz, conf_thres, iou_thres, model, name_list
-    stride = model.stride
-    img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+    stride, names = model.stride, model.names
 
-    im = letterbox(img, model_imgsz, stride=stride, auto=True)[0]
-    im = im.transpose((2, 0, 1))
-    im = np.ascontiguousarray(im)
+    im = letterbox(img, model_imgsz, stride=stride, auto=True)[0]  # padded resize
 
-    im = torch.from_numpy(im).to(model.device)
-    fp16 = True if use_fp_16 else False
-    if fp16:
-        # im = im.bfloat16()
-        im = im.half()
-    else:
-        im = im.float()
+    im = im.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
 
-    im /= 255.0
+    im = np.ascontiguousarray(im)  # contiguous
 
-    im = im.unsqueeze(0)
-    with torch.no_grad():
+    dt = (Profile(), Profile(), Profile())
+
+    with dt[0]:
+        im = torch.from_numpy(im).to(model.device)
+
+        im = im.half() if use_fp_16 else im.float()  # uint8 to fp16/32
+
+        im /= 255  # 0 - 255 to 0.0 - 1.0
+
+        if len(im.shape) == 3:
+            im = im[None]  # expand for batch dim
+    # Inference  推断
+    with dt[1]:
         pred = model(im, augment=False, visualize=False)
-        pred = non_max_suppression(pred, conf_thres, iou_thres, max_det=5)
+
+    # NMS  非极大值抑制
+    with dt[2]:
+        pred = non_max_suppression(pred, conf_thres, iou_thres, max_det=3)
 
     box_list = []
-    gn = torch.tensor(img.shape)[[1, 0, 1, 0]]
-
-    if len(pred[0]):
-        det = pred[0]
-        det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], img.shape).round()
-        for *xyxy, conf, cls in reversed(det):
-            if cls.item() != name_list.index("teammate"):  # 过滤队友标签
-                xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()
-                className = name_list[int(cls)]
-                conf_str = f"{int(100 * float(conf))}"
-                box_list.append((className, *xywh, conf_str))
-
+    for i, det in enumerate(pred):  # per image
+        gn = torch.tensor(img.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+        if len(det):
+            # Rescale boxes from img_size to im0 size
+            det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], img.shape).round()
+            # Write results
+            for *xyxy, conf, cls in reversed(det):
+                if names[int(cls)] != "teammate":  # 过滤队友
+                    xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                    line = (names[int(cls)], *xywh, int(100 * float(conf)))  # label format
+                    box_list.append(line)
     return box_list
 
 
@@ -307,7 +316,7 @@ def run_ai(no_wait_Queue):
             _for_time = _s((timer() - fps_tag) * 1000)
             _fps = (1 / float(_for_time)) * 1000
 
-            print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |  fps：{_fps}")
+            # print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |  fps：{_fps}")
 
             # 有数据则锁人
             if result:

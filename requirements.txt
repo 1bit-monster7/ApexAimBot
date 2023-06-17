@@ -48,5 +48,7 @@ pywin32
 pynput
 keyboard
 gradio
-PyAutoGUI
 PyQt5
+onnxruntime
+loguru
+PySide6

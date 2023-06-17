@@ -173,4 +173,4 @@ def create_ui(BIT_GOD):
         ])  # 触发
         bottom8 = gr.Button(value="重启软件")
         bottom8.click(restart_program)
-    demo.launch(inbrowser=True)
+    demo.launch(inbrowser=False)  # 是否自动打开浏览器

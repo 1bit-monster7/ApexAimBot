@@ -1,3 +1,4 @@
+import time
 from ctypes import windll
 
 import winsound
@@ -21,6 +22,7 @@ def shake_the_gun_fun(r, t, y):
             delay_move(r, r, t)
             delay_move(r, -r, t)
             delay_move(-r, -r, t)
+        time.sleep(0.01)
 
 
 def delay_move(x, y, ms=0):
@@ -43,4 +45,5 @@ def shake_gan_main(shake_r, shake_t, shake_y):
     print(f"抖枪宏 load successful 抖动幅度{shake_r} 抖动延时{shake_t} F12开关 {'开' if pressure_gun_switch else '关'}")
     listener_keyboard = keyboard.Listener(on_press=on_press)
     listener_keyboard.start()
+    # listener_keyboard.join()
     shake_the_gun_fun(shake_r, shake_t, shake_y)

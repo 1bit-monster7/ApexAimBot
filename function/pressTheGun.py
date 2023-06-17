@@ -50,8 +50,14 @@ def capture_screen_save(x, y, w, h):
 
 def threadInitialization(_tC):
     # 在这里启动键盘监听和任务处理线程
-    keyboard.Listener(on_release=on_release).start()
-    threading.Thread(target=_watch_gun, args=(_tC,)).start()
+    on_re = keyboard.Listener(on_release=on_release)
+    watch_g = threading.Thread(target=_watch_gun, args=(_tC,))
+
+    on_re.start()
+    watch_g.start()
+
+    # on_re.join()
+    # watch_g.join()
 
 
 def on_release(key):
