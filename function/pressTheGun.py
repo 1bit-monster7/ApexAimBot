@@ -3,14 +3,13 @@ import threading
 import cv2
 import numpy as np
 import winsound
-from PIL import ImageGrab
+from PIL import ImageGrab, Image
 from pynput import keyboard
 from pynput import mouse
 
 import G
-from function.delay_ms import delay_ms, left_down, left_or_right_down, left_and_right_down
+from function.delay_ms import delay_ms, left_or_right_down, left_and_right_down
 from function.segmentedMovement import _mouse
-from PIL import ImageGrab, Image
 
 flag_lock_obj = True  # 是否开启锁定的功能
 
@@ -43,9 +42,9 @@ def _watch_gun(_tC):
 def capture_screen_save(x, y, w, h):
     screen = ImageGrab.grab(bbox=[x, y, x + w, y + h])
     screen = np.array(screen)
-    pil_image = Image.fromarray(cv2.cvtColor(screen, cv2.COLOR_BGR2RGB))
+    pil_image = Image.fromarray(cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY))  # 灰度
     pil_image.save("function/image/gun.png")
-    return cv2.cvtColor(screen, cv2.COLOR_BGR2RGB), screen
+    return cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY), screen
 
 
 def threadInitialization(_tC):

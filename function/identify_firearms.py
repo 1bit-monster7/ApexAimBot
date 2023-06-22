@@ -59,7 +59,7 @@ def find_gun_main(c):
 def capture_screen(x, y, w, h):
     screen = ImageGrab.grab(bbox=[x, y, x + w, y + h])
     screen = np.array(screen)
-    return cv2.cvtColor(screen, cv2.COLOR_BGR2RGB), screen
+    return cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY), screen
 
 
 def compare_images(image1, image2):
@@ -70,7 +70,7 @@ def compare_images(image1, image2):
     return distance
 
 
-def search_image_binarization(gun_name, confidence=0.8):
+def search_image_binarization(gun_name, confidence=0.6):
     image_path = 'function/image/gun/{}.png'.format(gun_name)
     if os.path.exists(image_path):
         # 二值化截图

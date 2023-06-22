@@ -133,7 +133,7 @@ def _init_main(msg=''):
         print(f"是否开启FP16:{fp16}")
         model = DetectMultiBackend(w, device=device, dnn=False, data=data, fp16=fp16)
         model.warmup(imgsz=(1, 3, *[model_imgsz, model_imgsz]))  # warmup
-        name_list = [name for name in model.names.values()]  # 拿到标签类
+        # name_list = [name for name in model.names.values()]  # 拿到标签类
         print(name_list, '当前模型分类')
         print(f"分辨率:{screen_width}*{screen_height}p 截图宽高:{grab_width, grab_height} 窗口标题:{grab_window_title} 窗口开关：{is_show_top_window}  ")
     is_loading = False  # 加载完成可以开始推理
@@ -198,7 +198,7 @@ def processInitialization(no_wait_Queue):
     Process(target=automatic_armor_change_func).start()  # 自动换甲
     Process(target=find_gun_main, args=(_C,)).start()  # 自动识别压枪
     Process(target=down_gun_fun_c, args=(modifier_value, _C, no_wait_Queue)).start()  # 得到压枪数据
-    Process(target=shake_gan_main, args=(shake_coefficient, shake_delay, shake_coefficient_y)).start()  # 抖枪宏 通用宏
+    Process(target=shake_gan_main).start()  # 抖枪宏 通用宏
 
 
 def threadInitialization(no_wait_Queue):
@@ -292,7 +292,7 @@ def run_ai(no_wait_Queue):
     rect = (int(screen_width / 2 - grab_width / 2), int(screen_height / 2 - grab_height / 2), grab_width, grab_height)
     while True:
         # 初始化
-        _range = 1.2 if left_down_not_right() else 0.8  # 0.5 - 1  值越小范围越小 越大距离越远越锁
+        _range = 1.0 if left_down_not_right() else 0.7  # 0.5 - 1  值越小范围越小 越大距离越远越锁
         _range_y = 0.5
         if is_loading:
             rect = (int(screen_width / 2 - grab_width / 2), int(screen_height / 2 - grab_height / 2), grab_width, grab_height)
@@ -316,7 +316,7 @@ def run_ai(no_wait_Queue):
             _for_time = _s((timer() - fps_tag) * 1000)
             _fps = (1 / float(_for_time)) * 1000
 
-            # print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |  fps：{_fps}")
+            print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |  fps：{_fps}")
 
             # 有数据则锁人
             if result:
