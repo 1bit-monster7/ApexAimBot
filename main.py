@@ -133,7 +133,7 @@ def _init_main(msg=''):
         print(f"是否开启FP16:{fp16}")
         model = DetectMultiBackend(w, device=device, dnn=False, data=data, fp16=fp16)
         model.warmup(imgsz=(1, 3, *[model_imgsz, model_imgsz]))  # warmup
-        # name_list = [name for name in model.names.values()]  # 拿到标签类
+        name_list = [name for name in model.names.values()]  # 拿到标签类
         print(name_list, '当前模型分类')
         print(f"分辨率:{screen_width}*{screen_height}p 截图宽高:{grab_width, grab_height} 窗口标题:{grab_window_title} 窗口开关：{is_show_top_window}  ")
     is_loading = False  # 加载完成可以开始推理
@@ -316,7 +316,7 @@ def run_ai(no_wait_Queue):
             _for_time = _s((timer() - fps_tag) * 1000)
             _fps = (1 / float(_for_time)) * 1000
 
-            print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |  fps：{_fps}")
+            print(f"截图时间：{_search_time}  |  推理时间：{_pred_time}    |一轮总耗时：{_for_time}   |  fps：{_fps}")
 
             # 有数据则锁人
             if result:
